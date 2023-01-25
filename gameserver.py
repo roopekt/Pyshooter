@@ -4,7 +4,7 @@ import threading
 
 MAX_FPS = 50
 
-class Server:
+class GameServer:
     
     def __init__(self):
         self.physics_world = pymunk.Space()
@@ -26,3 +26,4 @@ class Server:
             self.should_run = False
             self.server_thread.join()
             self.server_thread = None
+

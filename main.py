@@ -1,10 +1,8 @@
-from server import Server
-from client import Client
+from gameserver import GameServer
+from gameclient import Client
+import communication
 
-server = Server()
-server.start()
+communication.CommunicationServer().start()
 
-client = Client()
-client.mainloop()
-
-server.stop()
+client = communication.CommunicationClient()
+client.send(b"Hello world!")

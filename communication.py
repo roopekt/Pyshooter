@@ -1,29 +1,35 @@
 import socket
 import threading
 from dataclasses import dataclass
+import pickle
+from abc import ABC, abstractmethod
 
 PORT = 29801
-PUBLIC_SERVER_IP = "127.0.0.1" #"195.148.39.50"
-LOCAL_SERVER_IP = "10.90.77.3"
+PUBLIC_IP = "127.0.0.1" #"195.148.39.50"
+LOCAL_IP = "10.90.77.3"
 
 # all messages start with a 32 bit header representing content length in bytes
-def attach_header_to_payload(payload):
-    header = len(payload).to_bytes(4, byteorder="big")
-    return header + payload
+def get_message(managed_payload):
+    serialized_data = pickle.dumps(managed_payload)
+    header = len(serialized_data).to_bytes(4, byteorder="big")
+    return header + serialized_data
 
-def read_content_length(socket):
-    return int.from_bytes(socket.recv(4), byteorder="big")
+def receive_message(socket):
+    content_length = int.from_bytes(socket.recv(4), byteorder="big")
+    payload = socket.recv(content_length)
+    return pickle.loads(payload)
 
 class CommunicationServer:
 
     def __init__(self):
         self.tcp_thread = None
-
         self.tcp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.tcp_socket.bind(('', PORT))
 
         # self.udp_socket = socket.socket(family=socket.AF_INET6, type=socket.SOCK_DGRAM)
         # self.udp_socket.bind(("", 4242))
+
+        self.connected_players = []
 
     def tcp_mainloop(self):
         self.should_run = True
@@ -33,11 +39,9 @@ class CommunicationServer:
             while self.should_run:
                 connection, address = tcp_socket.accept()
                 with connection:
-                    content_length = read_content_length(connection)
-                    data = connection.recv(content_length).decode("utf-8")
-                    print(f"{address}: {data}")
-
-                    connection.sendall(attach_header_to_payload(b"OK"))
+                    task = receive_message(connection)
+                    response = task.run(self)
+                    connection.sendall(get_message(response))
 
     def start(self):
         assert(self.tcp_thread == None)
@@ -54,11 +58,29 @@ class CommunicationClient:
 
     def __init__(self):
         self.tcp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.tcp_socket.connect((PUBLIC_SERVER_IP, PORT))
+        self.tcp_socket.connect((PUBLIC_IP, PORT))
 
     def send(self, data):
-        self.tcp_socket.sendall(attach_header_to_payload(data))
+        self.tcp_socket.sendall(get_message(data))
+        response = receive_message(self.tcp_socket)
 
-        response_content_length = read_content_length(self.tcp_socket)
-        response = self.tcp_socket.recv(response_content_length).decode("utf-8")
-        print(f"response received: {response}")
+    def join_server(self):
+        self.send(PlayerConnectionMessage(PUBLIC_IP))
+
+class ServerTask(ABC):
+
+    @abstractmethod
+    def run(self, server: CommunicationServer):
+        pass
+
+@dataclass
+class PlayerConnectionMessage(ServerTask):
+    ip: str
+
+    def run(self, server):
+        server.connected_players.append(ServerSidePlayerHandle(self.ip))
+        return "OK"
+
+@dataclass
+class ServerSidePlayerHandle:
+    ip: str

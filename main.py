@@ -5,4 +5,4 @@ import communication
 communication.CommunicationServer().start()
 
 client = communication.CommunicationClient()
-client.send(b"Hello world!")
+client.join_server()

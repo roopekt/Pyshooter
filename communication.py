@@ -1,10 +1,18 @@
 import socket
 import threading
+from dataclasses import dataclass
 
 PORT = 29801
 PUBLIC_SERVER_IP = "127.0.0.1" #"195.148.39.50"
 LOCAL_SERVER_IP = "10.90.77.3"
-BUFFER_SIZE = 4096
+
+# all messages start with a 32 bit header representing content length in bytes
+def attach_header_to_payload(payload):
+    header = len(payload).to_bytes(4, byteorder="big")
+    return header + payload
+
+def read_content_length(socket):
+    return int.from_bytes(socket.recv(4), byteorder="big")
 
 class CommunicationServer:
 
@@ -25,9 +33,11 @@ class CommunicationServer:
             while self.should_run:
                 connection, address = tcp_socket.accept()
                 with connection:
-                    data = connection.recv(BUFFER_SIZE).decode("utf-8")
+                    content_length = read_content_length(connection)
+                    data = connection.recv(content_length).decode("utf-8")
                     print(f"{address}: {data}")
-                    connection.send(b"OK")
+
+                    connection.sendall(attach_header_to_payload(b"OK"))
 
     def start(self):
         assert(self.tcp_thread == None)
@@ -47,6 +57,8 @@ class CommunicationClient:
         self.tcp_socket.connect((PUBLIC_SERVER_IP, PORT))
 
     def send(self, data):
-        self.tcp_socket.send(data)
-        response = self.tcp_socket.recv(BUFFER_SIZE).decode("utf-8")
+        self.tcp_socket.sendall(attach_header_to_payload(data))
+
+        response_content_length = read_content_length(self.tcp_socket)
+        response = self.tcp_socket.recv(response_content_length).decode("utf-8")
         print(f"response received: {response}")

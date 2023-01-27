@@ -1,8 +1,13 @@
 import pygame
+from pygame import Color, Vector2
 
 MAX_FPS = 60
 
-class Client:
+class GameClient:
+
+    def __init__(self, temp_server):
+        self.temp_value = 0
+        self.temp_server = temp_server
 
     def mainloop(self):
         pygame.init()
@@ -15,8 +20,10 @@ class Client:
             clock.tick(MAX_FPS)
 
             self.handle_events()
+            self.temp_value = self.temp_server.temp_value
         
             self.window.fill((0, 0, 0))
+            pygame.draw.circle(self.window, Color(255,0,0), Vector2(100, 100+50*self.temp_value), 10)
             pygame.display.flip()
 
         pygame.quit()

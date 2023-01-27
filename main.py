@@ -1,8 +1,14 @@
 from gameserver import GameServer
-from gameclient import Client
+from gameclient import GameClient
 import communication
 
-communication.CommunicationServer().start()
+# communication.CommunicationServer().start()
 
-client = communication.CommunicationClient()
-client.join_server()
+# client = communication.CommunicationClient()
+# client.join_server()
+
+server = GameServer()
+client = GameClient(server)
+server.start()
+client.mainloop()
+server.stop()

@@ -7,15 +7,23 @@ import messages
 PORT = 29801
 PUBLIC_IP = "127.0.0.1" #"195.148.39.50"
 LOCAL_IP = "10.90.77.3"
+MESSAGE_START = b"v!P2"
 
-# all messages start with a 32 bit header representing content length in bytes
+# all messages start with a header:
+# - constant message start mark (32 bits)
+# - content length (32bit big-endian integer)
+
 def get_message(managed_payload):
     serialized_data = pickle.dumps(managed_payload)
-    header = len(serialized_data).to_bytes(4, byteorder="big")
-    return header + serialized_data
+    content_length_header = len(serialized_data).to_bytes(4, byteorder="big")
+    return MESSAGE_START + content_length_header + serialized_data
 
 def receive_message(socket):
-    content_length = int.from_bytes(socket.recv(4), byteorder="big")
+    header = socket.recv(4 + 4)
+    message_start = header[:4]
+    assert(message_start == MESSAGE_START)
+    content_length = int.from_bytes(header[4:8], byteorder="big")
+
     payload = socket.recv(content_length)
     return pickle.loads(payload)
 

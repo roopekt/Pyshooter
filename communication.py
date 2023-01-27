@@ -1,8 +1,8 @@
 import socket
 import threading
-from dataclasses import dataclass
 import pickle
-from abc import ABC, abstractmethod
+from dataclasses import dataclass
+import messages
 
 PORT = 29801
 PUBLIC_IP = "127.0.0.1" #"195.148.39.50"
@@ -23,25 +23,27 @@ class CommunicationServer:
 
     def __init__(self):
         self.tcp_thread = None
-        self.tcp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.tcp_socket.bind(('', PORT))
+        self.inwards_tcp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.inwards_tcp_socket.bind(('', PORT))
 
-        # self.udp_socket = socket.socket(family=socket.AF_INET6, type=socket.SOCK_DGRAM)
-        # self.udp_socket.bind(("", 4242))
+        self.outwards_udp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.outwards_udp_socket.bind(('', PORT))
 
         self.connected_players = []
 
     def tcp_mainloop(self):
         self.should_run = True
-        with self.tcp_socket as tcp_socket:
+        with self.inwards_tcp_socket as tcp_socket:
             tcp_socket.listen()
 
             while self.should_run:
                 connection, address = tcp_socket.accept()
                 with connection:
-                    task = receive_message(connection)
-                    response = task.run(self)
-                    connection.sendall(get_message(response))
+                    message = receive_message(connection)
+
+                    if type(message) in IMMEDIATE_MESSAGE_HANDLERS:
+                        response = IMMEDIATE_MESSAGE_HANDLERS[type(message)](message, self)
+                        connection.sendall(get_message(response))
 
     def start(self):
         assert(self.tcp_thread == None)
@@ -54,6 +56,9 @@ class CommunicationServer:
             self.tcp_thread.join()
             self.tcp_thread = None
 
+    def send_udp(self, message):
+        self.outwards_udp_socket.send(get_message(message))
+
 class CommunicationClient:
 
     def __init__(self):
@@ -65,22 +70,16 @@ class CommunicationClient:
         response = receive_message(self.tcp_socket)
 
     def join_server(self):
-        self.send(PlayerConnectionMessage(PUBLIC_IP))
-
-class ServerTask(ABC):
-
-    @abstractmethod
-    def run(self, server: CommunicationServer):
-        pass
-
-@dataclass
-class PlayerConnectionMessage(ServerTask):
-    ip: str
-
-    def run(self, server):
-        server.connected_players.append(ServerSidePlayerHandle(self.ip))
-        return "OK"
+        self.send(messages.PlayerConnectionMessage(PUBLIC_IP))
 
 @dataclass
 class ServerSidePlayerHandle:
     ip: str
+
+def handle_PlayerConnectionMessage(message: messages.PlayerConnectionMessage, server: CommunicationServer):
+    server.connected_players.append(ServerSidePlayerHandle(message.ip))
+    return "OK"
+
+IMMEDIATE_MESSAGE_HANDLERS = {
+    messages.PlayerConnectionMessage: handle_PlayerConnectionMessage   
+}

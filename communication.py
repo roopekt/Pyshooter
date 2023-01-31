@@ -19,66 +19,77 @@ def get_message(managed_payload):
     return MESSAGE_START + content_length_header + serialized_data
 
 def receive_message(socket):
-    header = socket.recv(4 + 4)
-    message_start = header[:4]
+    data = socket.recv(4096)
+    message_start = data[:4]
     assert(message_start == MESSAGE_START)
-    content_length = int.from_bytes(header[4:8], byteorder="big")
+    content_length = int.from_bytes(data[4:8], byteorder="big")
 
-    payload = socket.recv(content_length)
+    payload = data[8:]
     return pickle.loads(payload)
 
 class CommunicationServer:
 
     def __init__(self):
-        self.tcp_thread = None
-        self.inwards_tcp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.inwards_tcp_socket.bind(('', PORT))
-
-        self.outwards_udp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        self.outwards_udp_socket.bind(('', PORT))
+        self.inwards_udp_thread = None
+        self.udp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.udp_socket.bind(('', PORT))
 
         self.connected_players = []
 
-    def tcp_mainloop(self):
+    def inwards_udp_mainloop(self):
         self.should_run = True
-        with self.inwards_tcp_socket as tcp_socket:
-            tcp_socket.listen()
-
+        with self.udp_socket as socket:
             while self.should_run:
-                connection, address = tcp_socket.accept()
-                with connection:
-                    message = receive_message(connection)
+                message = receive_message(socket)
 
-                    if type(message) in IMMEDIATE_MESSAGE_HANDLERS:
-                        response = IMMEDIATE_MESSAGE_HANDLERS[type(message)](message, self)
-                        connection.sendall(get_message(response))
+                if type(message) in IMMEDIATE_MESSAGE_HANDLERS:
+                    response = IMMEDIATE_MESSAGE_HANDLERS[type(message)](message, self)
+                    # socket.sendall(get_message(response))
 
     def start(self):
-        assert(self.tcp_thread == None)
-        self.tcp_thread = threading.Thread(target=self.tcp_mainloop)
-        self.tcp_thread.start()
+        assert(self.inwards_udp_thread == None)
+        self.inwards_udp_thread = threading.Thread(target=self.inwards_udp_mainloop)
+        self.inwards_udp_thread.start()
 
     def stop(self):
-        if self.tcp_thread != None:
+        if self.inwards_udp_thread != None:
             self.should_run = False
-            self.tcp_thread.join()
-            self.tcp_thread = None
+            self.inwards_udp_thread.join()
+            self.inwards_udp_thread = None
 
     def send_udp(self, message):
-        self.outwards_udp_socket.send(get_message(message))
+        self.udp_socket.send(get_message(message))
 
 class CommunicationClient:
 
     def __init__(self):
-        self.tcp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.tcp_socket.connect((PUBLIC_IP, PORT))
+        self.udp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.udp_socket.connect((PUBLIC_IP, PORT))
+        self.inwards_udp_thread = None
 
     def send(self, data):
-        self.tcp_socket.sendall(get_message(data))
-        response = receive_message(self.tcp_socket)
+        self.udp_socket.sendall(get_message(data))
+        # response = receive_message(self.outwards_udp_socket)
 
     def join_server(self):
         self.send(messages.PlayerConnectionMessage(PUBLIC_IP))
+
+    def receiving_udp_mainloop(self):
+        self.should_run = True
+        with self.udp_socket as socket:
+            while self.should_run:
+                message = receive_message(socket)
+
+    def start(self):
+        assert(self.inwards_udp_thread == None)
+        self.inwards_udp_thread = threading.Thread(target=self.receiving_udp_mainloop)
+        self.inwards_udp_thread.start()
+
+    def stop(self):
+        if self.inwards_udp_thread != None:
+            self.should_run = False
+            self.inwards_udp_thread.join()
+            self.inwards_udp_thread = None
 
 @dataclass
 class ServerSidePlayerHandle:

@@ -3,6 +3,7 @@ import threading
 import pickle
 from dataclasses import dataclass
 import messages
+from queue import Queue
 
 PORT = 29801
 PUBLIC_IP = "127.0.0.1" #"195.148.39.50"
@@ -27,6 +28,22 @@ def receive_message(socket):
     payload = data[8:]
     return pickle.loads(payload)
 
+class MessageStorage:
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.messages = []
+
+    def add(self, message):
+        with self.lock:
+            self.messages.append(message)
+
+    def poll(self):
+        with self.lock:
+            messages = self.messages
+            self.messages = []
+        return messages
+
 class CommunicationServer:
 
     def __init__(self):
@@ -35,6 +52,7 @@ class CommunicationServer:
         self.udp_socket.bind(('', PORT))
 
         self.connected_players = []
+        self.message_storage = MessageStorage()
 
     def inwards_udp_mainloop(self):
         self.should_run = True
@@ -45,6 +63,8 @@ class CommunicationServer:
                 if type(message) in IMMEDIATE_MESSAGE_HANDLERS:
                     response = IMMEDIATE_MESSAGE_HANDLERS[type(message)](message, self)
                     # socket.sendall(get_message(response))
+                else:
+                    self.message_storage.add(message)
 
     def start(self):
         assert(self.inwards_udp_thread == None)
@@ -60,12 +80,17 @@ class CommunicationServer:
     def send_udp(self, message):
         self.udp_socket.send(get_message(message))
 
+    def poll_messages(self):
+        return self.message_storage.poll()
+
 class CommunicationClient:
 
     def __init__(self):
         self.udp_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.udp_socket.connect((PUBLIC_IP, PORT))
         self.inwards_udp_thread = None
+
+        self.message_storage = MessageStorage()
 
     def send(self, data):
         self.udp_socket.sendall(get_message(data))
@@ -79,6 +104,7 @@ class CommunicationClient:
         with self.udp_socket as socket:
             while self.should_run:
                 message = receive_message(socket)
+                self.message_storage.add(message)
 
     def start(self):
         assert(self.inwards_udp_thread == None)
@@ -90,6 +116,9 @@ class CommunicationClient:
             self.should_run = False
             self.inwards_udp_thread.join()
             self.inwards_udp_thread = None
+
+    def poll_messages(self):
+        return self.message_storage.poll()
 
 @dataclass
 class ServerSidePlayerHandle:

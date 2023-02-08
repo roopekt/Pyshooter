@@ -13,9 +13,7 @@ MESSAGE_START = b"v!P2"
 RELIABLE_MESSAGE_SEND_COUNT = 3
 RELIABLE_MESSAGE_ID_STORAGE_SIZE = 1024
 
-# all messages start with a header:
-# - constant message start mark (32 bits)
-# - content length (32bit big-endian integer)
+# all messages start with a constant message start mark (32 bits)
 
 # reliable message protocol
 # - messages sent multiple times
@@ -23,18 +21,17 @@ RELIABLE_MESSAGE_ID_STORAGE_SIZE = 1024
 
 def get_packet(managed_payload):
     serialized_data = pickle.dumps(managed_payload)
-    content_length_header = len(serialized_data).to_bytes(4, byteorder="big")
-    return MESSAGE_START + content_length_header + serialized_data
+    return MESSAGE_START + serialized_data
 
 # returns (data, sender's address)
 def receive_message(socket: socket.socket):
     data, address = socket.recvfrom(4096)
     message_start = data[:4]
     assert(message_start == MESSAGE_START)
-    content_length = int.from_bytes(data[4:8], byteorder="big")
 
-    payload = data[8:]
-    return pickle.loads(payload), address
+    payload = data[4:]
+    message = pickle.loads(payload)
+    return message, address
 
 class MessageStorage:
 

@@ -1,10 +1,11 @@
 import socket
 import threading
 import pickle
-from dataclasses import dataclass, field
 import messages
 from random import getrandbits
 from abc import ABC, abstractmethod
+from queue import Queue
+from typing import Union
 
 PORT = 29801
 PUBLIC_IP = "127.0.0.1" #"195.148.39.50"
@@ -18,20 +19,6 @@ RELIABLE_MESSAGE_ID_STORAGE_SIZE = 1024
 # reliable message protocol
 # - messages sent multiple times
 # - receiver remembers received messages (by id) up to a limit, and only acts on first receival
-
-def get_packet(managed_payload):
-    serialized_data = pickle.dumps(managed_payload)
-    return MESSAGE_START + serialized_data
-
-# returns (data, sender's address)
-def receive_message(socket: socket.socket):
-    data, address = socket.recvfrom(4096)
-    message_start = data[:4]
-    assert(message_start == MESSAGE_START)
-
-    payload = data[4:]
-    message = pickle.loads(payload)
-    return message, address
 
 class MessageStorage:
 
@@ -68,15 +55,57 @@ class ConstSizeQueue:
     def __contains__(self, item):
         return item in self.array
 
+ # with this, the hosting client and server can communicate without internet
+class DirectSocket:
+
+    def __init__(self):
+        self.received_packet_queue = Queue()
+        self.other_socket = None
+
+    def recvfrom(self, max_buffer_size):
+        address = "direct"
+        packet = self.received_packet_queue.get()
+        return packet, address
+
+    def sendto(self, packet, address):
+        self.other_socket.received_packet_queue.put(packet)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        return
+
+    @classmethod
+    def get_pair(cls):
+        a, b = cls(), cls()
+        a.other_socket, b.other_socket = b, a
+        return a, b
+
 class ReliableMessage:
 
     def __init__(self, payload):
         self.id = getrandbits(32)
         self.payload = payload
 
+
+def get_packet(managed_payload):
+    serialized_data = pickle.dumps(managed_payload)
+    return MESSAGE_START + serialized_data
+
+# returns (data, sender's address)
+def receive_message(socket: Union[socket.socket, DirectSocket]):
+    data, address = socket.recvfrom(4096)
+    message_start = data[:4]
+    assert(message_start == MESSAGE_START)
+
+    payload = data[4:]
+    message = pickle.loads(payload)
+    return message, address
+
 class CommunicationEndpoint(ABC):
 
-    def __init__(self, message_socket: socket.socket):
+    def __init__(self, message_socket: Union[socket.socket, DirectSocket]):
         self.message_socket = message_socket
         self.message_storage = MessageStorage()
         self.should_run = False
@@ -123,11 +152,12 @@ class CommunicationEndpoint(ABC):
 
 class CommunicationServer(CommunicationEndpoint):
 
-    def __init__(self):
+    def __init__(self, message_socket = None):
         self.connected_players: dict[str, ServerSidePlayerHandle] = {}# ip -> player
 
-        message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        message_socket.bind(('', PORT))
+        if message_socket == None:
+            message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+            message_socket.bind(('', PORT))
         super().__init__(message_socket)
 
     def get_reliable_message_id_storage(self, sender_ip) -> ConstSizeQueue:
@@ -151,11 +181,12 @@ class CommunicationServer(CommunicationEndpoint):
 
 class CommunicationClient(CommunicationEndpoint):
 
-    def __init__(self):
+    def __init__(self, message_socket = None):
         self.reliable_message_id_storage = ConstSizeQueue(RELIABLE_MESSAGE_ID_STORAGE_SIZE)
 
-        message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        message_socket.bind(('', PORT))
+        if message_socket == None:
+            message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+            message_socket.bind(('', PORT))
         super().__init__(message_socket)
 
     def get_reliable_message_id_storage(self, sender_ip) -> ConstSizeQueue:

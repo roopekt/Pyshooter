@@ -3,16 +3,22 @@ import pymunk
 import threading
 from time import time
 from math import sin
+from communication import CommunicationServer
+import messages
 
 MAX_FPS = 50
 
 class GameServer:
     
-    def __init__(self):
+    def __init__(self, communication_server: CommunicationServer, start = False):
         self.physics_world = pymunk.Space()
         self.server_thread = None
+        self.communication_server = communication_server
 
-        self.temp_value = 0
+        self.temp = 0
+
+        if start:
+            self.start()
 
     def mainloop(self):
         self.should_run = True
@@ -20,7 +26,19 @@ class GameServer:
         while self.should_run:
             clock.tick(MAX_FPS)
 
-            self.temp_value = sin(time())
+            self.handle_messages()
+
+            self.communication_server.send_to_all(
+                messages.TempMessage(sin(time()) + self.temp)
+            )
+
+    def handle_messages(self):
+        for message in self.communication_server.poll_messages():
+            if isinstance(message, messages.TempReliableToServer):
+                print("update")
+                self.temp = message.new_value
+            else:
+                raise Exception(f"Server cannot handle a {type(message)}.")
 
     def start(self):
         assert(self.server_thread == None)

@@ -10,3 +10,11 @@ class MessageToClient(ABC):
 @dataclass
 class PlayerConnectionMessage(MessageToServer):
     ip: str
+
+@dataclass
+class TempMessage(MessageToClient):
+    value: float
+
+@dataclass
+class TempReliableToServer(MessageToServer):
+    new_value: float

@@ -1,13 +1,16 @@
 import pygame
 from pygame import Color, Vector2
+from communication import CommunicationClient
+import messages
+from random import random
 
 MAX_FPS = 60
 
 class GameClient:
 
-    def __init__(self, temp_server):
+    def __init__(self, communication_client: CommunicationClient):
         self.temp_value = 0
-        self.temp_server = temp_server
+        self.communication_client = communication_client
 
     def mainloop(self):
         pygame.init()
@@ -20,10 +23,10 @@ class GameClient:
             clock.tick(MAX_FPS)
 
             self.handle_events()
-            self.temp_value = self.temp_server.temp_value
+            self.handle_messages()
         
             self.window.fill((0, 0, 0))
-            pygame.draw.circle(self.window, Color(255,0,0), Vector2(100, 100+50*self.temp_value), 10)
+            pygame.draw.circle(self.window, Color(255,0,0), Vector2(100, 150+50*self.temp_value), 10)
             pygame.display.flip()
 
         pygame.quit()
@@ -32,3 +35,12 @@ class GameClient:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.should_run = False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                self.communication_client.send(messages.TempReliableToServer(random()))
+
+    def handle_messages(self):
+        for message in self.communication_client.poll_messages():
+            if isinstance(message, messages.TempMessage):
+                self.temp_value = message.value
+            else:
+                raise Exception(f"Client cannot handle a {type(message)}.")

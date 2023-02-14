@@ -34,7 +34,7 @@ class GameServer:
 
     def handle_messages(self):
         for message in self.communication_server.poll_messages():
-            if isinstance(message, messages.TempReliableToServer):
+            if isinstance(message.payload, messages.TempReliableToServer):
                 print("update")
                 self.temp = message.new_value
             else:

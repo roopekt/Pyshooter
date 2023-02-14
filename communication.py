@@ -82,7 +82,7 @@ class CommunicationEndpoint(ABC):
         self.message_storage = message_storage
 
     @abstractmethod
-    def get_reliable_message_id_storage(self, sender_ip) -> ConstSizeQueue:
+    def get_reliable_message_id_storage(self, message: ReliableMessage) -> ConstSizeQueue:
         pass
 
     @abstractmethod
@@ -93,9 +93,9 @@ class CommunicationEndpoint(ABC):
         with self.message_socket as socket:
             while self.should_run:
                 message, address = receive_message(socket)
-                reliable_message_id_storage = self.get_reliable_message_id_storage(address)
 
                 if isinstance(message, ReliableMessage):
+                    reliable_message_id_storage = self.get_reliable_message_id_storage(message)
                     if message.id in reliable_message_id_storage:
                         continue
                     else:
@@ -123,7 +123,7 @@ class CommunicationServer(CommunicationEndpoint):
 
     def __init__(self, own_message_storage = None, hosting_client_message_storage = None, start = False):
         self.hosting_client_message_storage = hosting_client_message_storage
-        self.connected_players: dict[str, ServerSidePlayerHandle] = {}# ip -> player
+        self.connected_players: dict[messages.PlayerId, ServerSidePlayerHandle] = {}
 
         if own_message_storage == None:
             own_message_storage = MessageStorage()
@@ -136,13 +136,15 @@ class CommunicationServer(CommunicationEndpoint):
         if start:
             self.start()
 
-    def get_reliable_message_id_storage(self, sender_ip) -> ConstSizeQueue:
-        return self.connected_players[sender_ip].reliable_message_id_storage
+    def get_reliable_message_id_storage(self, message) -> ConstSizeQueue:
+        player_id = message.payload.player_id
+        return self.connected_players[player_id].reliable_message_id_storage
 
     def handle_message(self, message):
-        assert(isinstance(message, messages.MessageToServer))
-        if type(message) in IMMEDIATE_MESSAGE_HANDLERS:
-            response = IMMEDIATE_MESSAGE_HANDLERS[type(message)](message, self)
+        assert(isinstance(message, messages.MessageToServerWithId))
+        message_type = type(message.payload)
+        if message_type in IMMEDIATE_MESSAGE_HANDLERS:
+            response = IMMEDIATE_MESSAGE_HANDLERS[message_type](message.payload, message.sender_id, self)
         else:
             self.enqueue_message(message)
 
@@ -176,6 +178,7 @@ class CommunicationClient(ABC):
 class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
 
     def __init__(self, start = False):
+        self.id = messages.get_new_player_id()
         self.reliable_message_id_storage = ConstSizeQueue(RELIABLE_MESSAGE_ID_STORAGE_SIZE)
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
@@ -185,14 +188,15 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
         if start:
             self.start()
 
-    def get_reliable_message_id_storage(self, sender_ip) -> ConstSizeQueue:
-        return super().get_reliable_message_id_storage(sender_ip)
+    def get_reliable_message_id_storage(self, message) -> ConstSizeQueue:
+        return self.reliable_message_id_storage
 
     def handle_message(self, message):
         assert(isinstance(message, messages.MessageToClient))
         self.enqueue_message(message)
 
     def send(self, message):
+        message = messages.MessageToServerWithId(self.id, message)
         packet = get_packet(message)
         self.message_socket.sendto(packet, (PUBLIC_IP, PORT))
 
@@ -202,7 +206,7 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
             self.send(message)
 
     def join_server(self):
-        self.send_reliable(messages.PlayerConnectionMessage(PUBLIC_IP))
+        self.send_reliable(messages.PlayerConnectionMessage())
 
 # on the same machine as server, doesn't need internet
 class HostingCommunicationClient(CommunicationClient):
@@ -222,12 +226,12 @@ class HostingCommunicationClient(CommunicationClient):
 
 class ServerSidePlayerHandle:
 
-    def __init__(self, player_ip, socket = None):
-        self.ip = player_ip
+    def __init__(self, player_id: messages.PlayerId):
+        self.ip = player_id
         self.reliable_message_id_storage = ConstSizeQueue(RELIABLE_MESSAGE_ID_STORAGE_SIZE)
 
-def handle_PlayerConnectionMessage(message: messages.PlayerConnectionMessage, server: CommunicationServer):
-    server.connected_players[message.ip] = ServerSidePlayerHandle(message.ip)
+def handle_PlayerConnectionMessage(message: messages.PlayerConnectionMessage, player_id: messages.PlayerId, server: CommunicationServer):
+    server.connected_players[player_id] = ServerSidePlayerHandle(player_id)
     return "OK"
 
 IMMEDIATE_MESSAGE_HANDLERS = {

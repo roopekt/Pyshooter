@@ -2,7 +2,7 @@ import pygame
 from pygame import Color, Vector2
 from communication import CommunicationClient
 import messages
-from random import random
+from random import random, randbytes
 
 MAX_FPS = 60
 

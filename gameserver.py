@@ -1,10 +1,10 @@
 import pygame
 import pymunk
+from pymunk import Vec2d
 import threading
-from time import time
-from math import sin
 from communication import CommunicationServer
 import messages
+import player
 
 MAX_FPS = 50
 
@@ -12,10 +12,15 @@ class GameServer:
     
     def __init__(self, communication_server: CommunicationServer, start = False):
         self.physics_world = pymunk.Space()
+        self.physics_world.gravity = Vec2d(0, -9.81)
         self.server_thread = None
         self.communication_server = communication_server
+        self.players: dict[str, player.ServerPlayer] = {}
 
-        self.temp = 0
+        self.floor_body = pymunk.Body(body_type=pymunk.Body.STATIC)
+        self.floor_collider = pymunk.Segment(self.floor_body, (-100, 0), (100, 0), radius=0)
+        self.floor_collider.elasticity = 0.8
+        self.physics_world.add(self.floor_body, self.floor_collider)
 
         if start:
             self.start()
@@ -25,20 +30,25 @@ class GameServer:
         clock = pygame.time.Clock()
         while self.should_run:
             clock.tick(MAX_FPS)
-
             self.handle_messages()
-
-            self.communication_server.send_to_all(
-                messages.TempMessage(sin(time()) + self.temp)
-            )
+            self.physics_world.step(1/MAX_FPS)
+            self.send_post_frame_messages()
 
     def handle_messages(self):
-        for message in self.communication_server.poll_messages():
-            if isinstance(message.payload, messages.TempReliableToServer):
-                print("update")
-                self.temp = message.new_value
+        for message_with_id in self.communication_server.poll_messages():
+            message = message_with_id.payload
+            sender_id = message_with_id.sender_id
+
+            if isinstance(message, messages.PlayerConnectionMessage):
+                self.players[sender_id] = player.ServerPlayer(sender_id, self.physics_world)
+            elif isinstance(message, messages.MousePositionUpdate):
+                self.players[sender_id].mouse_position_world_space = message.mouse_position_world_space
             else:
                 raise Exception(f"Server cannot handle a {type(message)}.")
+
+    def send_post_frame_messages(self):
+        for player in self.players.values():
+            self.communication_server.send_to_all(player.get_position_update_message())
 
     def start(self):
         assert(self.server_thread == None)

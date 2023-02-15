@@ -143,10 +143,11 @@ class CommunicationServer(CommunicationEndpoint):
     def handle_message(self, message):
         assert(isinstance(message, messages.MessageToServerWithId))
         message_type = type(message.payload)
+
         if message_type in IMMEDIATE_MESSAGE_HANDLERS:
             response = IMMEDIATE_MESSAGE_HANDLERS[message_type](message.payload, message.sender_id, self)
-        else:
-            self.enqueue_message(message)
+
+        self.enqueue_message(message)
 
     def send_to_all(self, message):
         packet = get_packet(message)
@@ -163,6 +164,9 @@ class CommunicationServer(CommunicationEndpoint):
 
 class CommunicationClient(ABC):
 
+    def __init__(self):
+        self.id = messages.get_new_player_id()
+
     @abstractmethod
     def send(self, message):
         pass
@@ -175,15 +179,18 @@ class CommunicationClient(ABC):
     def poll_messages(self) -> list[messages.MessageToClient]:
         pass
 
+    def join_server(self):
+        self.send_reliable(messages.PlayerConnectionMessage())
+
 class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
 
     def __init__(self, start = False):
-        self.id = messages.get_new_player_id()
+        super(CommunicationClient, self).__init__()
         self.reliable_message_id_storage = ConstSizeQueue(RELIABLE_MESSAGE_ID_STORAGE_SIZE)
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         message_socket.bind(('', PORT))
-        super().__init__(message_socket, MessageStorage())
+        super(CommunicationEndpoint, self).__init__(message_socket, MessageStorage())
 
         if start:
             self.start()
@@ -212,10 +219,12 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
 class HostingCommunicationClient(CommunicationClient):
 
     def __init__(self, own_message_storage: MessageStorage, server_message_storage: MessageStorage):
+        super().__init__()
         self.own_message_storage = own_message_storage
         self.server_message_storage = server_message_storage
 
     def send(self, message):
+        message = messages.MessageToServerWithId(self.id, message)
         self.server_message_storage.add(message)
 
     def send_reliable(self, message):

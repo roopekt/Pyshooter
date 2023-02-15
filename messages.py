@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from abc import ABC
+from pymunk import Vec2d
 from typing import NewType, Optional
-from random import randbytes
+from random import randint
 
 PlayerId = NewType("PlayerId", int)
 def get_new_player_id():
-    return PlayerId(int(randbytes(4)))
+    return PlayerId(randint(0, 0xFF_FF_FF_FF))
 
 class MessageToServer(ABC):
     pass
@@ -18,14 +19,15 @@ class MessageToServerWithId:
     sender_id: PlayerId
     payload: MessageToServer
 
-@dataclass
 class PlayerConnectionMessage(MessageToServer):
     pass
 
 @dataclass
-class TempMessage(MessageToClient):
-    value: float
+class MousePositionUpdate(MessageToServer):
+    mouse_position_world_space: Vec2d
 
 @dataclass
-class TempReliableToServer(MessageToServer):
-    new_value: float
+class PlayerStateUpdate(MessageToClient):
+    player_id: PlayerId
+    position: Vec2d
+    mouse_position_world_space: Vec2d

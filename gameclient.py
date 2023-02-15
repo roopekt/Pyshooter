@@ -1,16 +1,23 @@
 import pygame
-from pygame import Color, Vector2
+from pygame import Color
 from communication import CommunicationClient
 import messages
-from random import random, randbytes
+import player
+from pymunk import Vec2d
+import mymath
 
 MAX_FPS = 60
 
 class GameClient:
 
     def __init__(self, communication_client: CommunicationClient):
-        self.temp_value = 0
         self.communication_client = communication_client
+        self.camera_position = Vec2d.zero()
+        self.camera_height = 15
+
+        self.players = {
+            self.communication_client.id : player.ClientPlayer(is_owned_by_client=True)
+        }
 
     def mainloop(self):
         pygame.init()
@@ -21,26 +28,73 @@ class GameClient:
 
         while self.should_run:
             clock.tick(MAX_FPS)
-
-            self.handle_events()
+            self.handle_input()
             self.handle_messages()
-        
-            self.window.fill((0, 0, 0))
-            pygame.draw.circle(self.window, Color(255,0,0), Vector2(100, 150+50*self.temp_value), 10)
-            pygame.display.flip()
+            self.render()
 
         pygame.quit()
 
-    def handle_events(self):
+    def handle_input(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.should_run = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                self.communication_client.send(messages.TempReliableToServer(random()))
+
+        self.get_own_avatar().mouse_position_world_space = self.get_world_position(pygame.mouse.get_pos())
 
     def handle_messages(self):
         for message in self.communication_client.poll_messages():
-            if isinstance(message, messages.TempMessage):
-                self.temp_value = message.value
+            if isinstance(message, messages.PlayerStateUpdate):
+                self.players[message.player_id].update_state(message)
             else:
                 raise Exception(f"Client cannot handle a {type(message)}.")
+
+    def send_post_frame_messages(self):
+        self.communication_client.send(messages.MousePositionUpdate(self.get_own_avatar().mouse_position_world_space))
+
+    def render(self):
+        graphic_scaler = self.get_graphical_scale_factor()
+        self.window.fill(Color(0, 0, 0))
+
+        for _player in self.players.values():
+            if _player.position != None:
+                pygame.draw.circle(
+                    self.window,
+                    Color(255, 0, 0),
+                    self.get_screen_position(_player.position),
+                    player.RADIUS * graphic_scaler
+                )
+                gun_pos = _player.position + (_player.mouse_position_world_space - _player.position).scale_to_length(player.RADIUS)
+                pygame.draw.circle(
+                    self.window,
+                    Color(255, 255, 0),
+                    self.get_screen_position(gun_pos),
+                    player.RADIUS * graphic_scaler / 3
+                )
+
+        pygame.display.flip()
+
+    def get_screen_position(self, world_position: Vec2d):
+        window_size = mymath.tuple_to_pymunk_vec(self.window.get_size())
+
+        p = world_position - self.camera_position
+        p = Vec2d(p.x, -p.y)
+        p *= self.get_graphical_scale_factor()
+        p += window_size / 2
+        return pygame.Vector2(p.x, p.y)
+
+    def get_world_position(self, screen_position: tuple[float, float]):
+        window_size = mymath.tuple_to_pymunk_vec(self.window.get_size())
+
+        p = mymath.tuple_to_pymunk_vec(screen_position)
+        p -= window_size / 2
+        p /= self.get_graphical_scale_factor()
+        p = Vec2d(p.x, -p.y)
+        p += self.camera_position
+        return p
+
+    # scale factor to convert between world units and pixels
+    def get_graphical_scale_factor(self):
+        return self.window.get_height() / self.camera_height
+
+    def get_own_avatar(self):
+        return self.players[self.communication_client.id]

@@ -30,6 +30,7 @@ class GameClient:
             clock.tick(MAX_FPS)
             self.handle_input()
             self.handle_messages()
+            self.send_post_frame_messages()
             self.render()
 
         pygame.quit()
@@ -44,6 +45,9 @@ class GameClient:
     def handle_messages(self):
         for message in self.communication_client.poll_messages():
             if isinstance(message, messages.PlayerStateUpdate):
+                if message.player_id not in self.players:
+                    self.players[message.player_id] = player.ClientPlayer(is_owned_by_client=False)
+
                 self.players[message.player_id].update_state(message)
             else:
                 raise Exception(f"Client cannot handle a {type(message)}.")

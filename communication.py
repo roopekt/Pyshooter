@@ -4,6 +4,7 @@ import pickle
 import messages
 from random import getrandbits
 from abc import ABC, abstractmethod
+from typing import Optional
 
 PORT = 29801
 PUBLIC_IP = "127.0.0.1" #"195.148.39.50"
@@ -82,11 +83,11 @@ class CommunicationEndpoint(ABC):
         self.message_storage = message_storage
 
     @abstractmethod
-    def get_reliable_message_id_storage(self, message: ReliableMessage) -> ConstSizeQueue:
+    def get_reliable_message_id_storage(self, message: ReliableMessage, address) -> ConstSizeQueue:
         pass
 
     @abstractmethod
-    def handle_message(self, message):
+    def handle_message(self, message, address):
         pass
 
     def inwards_message_mainloop(self):
@@ -95,14 +96,14 @@ class CommunicationEndpoint(ABC):
                 message, address = receive_message(socket)
 
                 if isinstance(message, ReliableMessage):
-                    reliable_message_id_storage = self.get_reliable_message_id_storage(message)
+                    reliable_message_id_storage = self.get_reliable_message_id_storage(message, address)
                     if message.id in reliable_message_id_storage:
                         continue
                     else:
                         reliable_message_id_storage.add(message.id)
                         message = message.payload
 
-                self.handle_message(message)
+                self.handle_message(message, address)
 
     def start(self):
         self.should_run = True
@@ -121,41 +122,44 @@ class CommunicationEndpoint(ABC):
 
 class CommunicationServer(CommunicationEndpoint):
 
-    def __init__(self, own_message_storage = None, hosting_client_message_storage = None, start = False):
-        self.hosting_client_message_storage = hosting_client_message_storage
+    def __init__(self, start = False):
+        self.hosting_client: Optional[HostingCommunicationClient] = None
         self.connected_players: dict[messages.PlayerId, ServerSidePlayerHandle] = {}
-
-        if own_message_storage == None:
-            own_message_storage = MessageStorage()
+        message_storage = MessageStorage()
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         message_socket.bind(('', PORT))
 
-        super().__init__(message_socket, own_message_storage)
+        super().__init__(message_socket, message_storage)
 
         if start:
             self.start()
 
-    def get_reliable_message_id_storage(self, message) -> ConstSizeQueue:
+    def get_reliable_message_id_storage(self, message, address) -> ConstSizeQueue:
         player_id = message.payload.player_id
+        self.add_player_if_new(player_id, address)
         return self.connected_players[player_id].reliable_message_id_storage
 
-    def handle_message(self, message):
+    def handle_message(self, message, address):
         assert(isinstance(message, messages.MessageToServerWithId))
-        message_type = type(message.payload)
-
-        if message_type in IMMEDIATE_MESSAGE_HANDLERS:
-            response = IMMEDIATE_MESSAGE_HANDLERS[message_type](message.payload, message.sender_id, self)
-
+        self.add_player_if_new(message.sender_id, address)
         self.enqueue_message(message)
+
+    def add_player_if_new(self, player_id: messages.PlayerId, address):
+        known_ids = list(self.connected_players.keys())
+        if self.hosting_client != None:
+            known_ids.append(self.hosting_client.id)
+
+        if player_id not in known_ids:
+            self.connected_players[player_id] = ServerSidePlayerHandle(player_id, address[0])
 
     def send_to_all(self, message):
         packet = get_packet(message)
         for player in self.connected_players.values():
             self.message_socket.sendto(packet, (player.ip, PORT))
 
-        if self.hosting_client_message_storage != None:
-            self.hosting_client_message_storage.add(message)
+        if self.hosting_client != None:
+            self.hosting_client.handle_message(message)
 
     def send_to_all_reliable(self, message):
         message = ReliableMessage(message)
@@ -179,9 +183,6 @@ class CommunicationClient(ABC):
     def poll_messages(self) -> list[messages.MessageToClient]:
         pass
 
-    def join_server(self):
-        self.send_reliable(messages.PlayerConnectionMessage())
-
 class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
 
     def __init__(self, start = False):
@@ -195,10 +196,10 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
         if start:
             self.start()
 
-    def get_reliable_message_id_storage(self, message) -> ConstSizeQueue:
+    def get_reliable_message_id_storage(self, message, address) -> ConstSizeQueue:
         return self.reliable_message_id_storage
 
-    def handle_message(self, message):
+    def handle_message(self, message, address):
         assert(isinstance(message, messages.MessageToClient))
         self.enqueue_message(message)
 
@@ -212,37 +213,30 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
         for i in range(RELIABLE_MESSAGE_SEND_COUNT):
             self.send(message)
 
-    def join_server(self):
-        self.send_reliable(messages.PlayerConnectionMessage())
-
 # on the same machine as server, doesn't need internet
 class HostingCommunicationClient(CommunicationClient):
 
-    def __init__(self, own_message_storage: MessageStorage, server_message_storage: MessageStorage):
+    def __init__(self, server: CommunicationServer):
         super().__init__()
-        self.own_message_storage = own_message_storage
-        self.server_message_storage = server_message_storage
+        self.server = server
+        self.message_storage = MessageStorage()
+
+    def handle_message(self, message: messages.MessageToClient):
+        self.message_storage.add(message)
 
     def send(self, message):
         message = messages.MessageToServerWithId(self.id, message)
-        self.server_message_storage.add(message)
+        self.server.handle_message(message, ("direct", 0))
 
     def send_reliable(self, message):
         self.send(message)
 
     def poll_messages(self):
-        return self.own_message_storage.poll()
+        return self.message_storage.poll()
 
 class ServerSidePlayerHandle:
 
-    def __init__(self, player_id: messages.PlayerId):
-        self.ip = player_id
+    def __init__(self, player_id: messages.PlayerId, ip: str):
+        self.id = player_id
+        self.ip = ip
         self.reliable_message_id_storage = ConstSizeQueue(RELIABLE_MESSAGE_ID_STORAGE_SIZE)
-
-def handle_PlayerConnectionMessage(message: messages.PlayerConnectionMessage, player_id: messages.PlayerId, server: CommunicationServer):
-    server.connected_players[player_id] = ServerSidePlayerHandle(player_id)
-    return "OK"
-
-IMMEDIATE_MESSAGE_HANDLERS = {
-    messages.PlayerConnectionMessage: handle_PlayerConnectionMessage
-}

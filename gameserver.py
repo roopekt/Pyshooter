@@ -39,9 +39,10 @@ class GameServer:
             message = message_with_id.payload
             sender_id = message_with_id.sender_id
 
-            if isinstance(message, messages.PlayerConnectionMessage):
+            if sender_id not in self.players:
                 self.players[sender_id] = player.ServerPlayer(sender_id, self.physics_world)
-            elif isinstance(message, messages.MousePositionUpdate):
+
+            if isinstance(message, messages.MousePositionUpdate):
                 self.players[sender_id].mouse_position_world_space = message.mouse_position_world_space
             else:
                 raise Exception(f"Server cannot handle a {type(message)}.")

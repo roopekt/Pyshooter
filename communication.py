@@ -6,16 +6,18 @@ from random import getrandbits
 from abc import ABC, abstractmethod
 from typing import Optional
 
-PORT = 29801
-PUBLIC_IP = "127.0.0.1" #"195.148.39.50"
-LOCAL_IP = "10.90.77.3"
+SERVER_PORT = 29801
+CLIENT_PORT = SERVER_PORT + 1
+SERVER_IP = "127.0.0.1" #"195.148.39.50"
+CLIENT_IP = SERVER_IP
+# LOCAL_IP = "10.90.77.3"
 MESSAGE_START = b"v!P2"
 RELIABLE_MESSAGE_SEND_COUNT = 3
 RELIABLE_MESSAGE_ID_STORAGE_SIZE = 1024
 
 # all messages start with a constant message start mark (32 bits)
 
-# reliable message protocol
+# reliable message protocol (stupid)
 # - messages sent multiple times
 # - receiver remembers received messages (by id) up to a limit, and only acts on first receival
 
@@ -74,7 +76,7 @@ def receive_message(socket: socket.socket):
     message = pickle.loads(payload)
     return message, address
 
-class CommunicationEndpoint(ABC):
+class CommunicationEndpoint(ABC, object):
 
     def __init__(self, message_socket: socket.socket, message_storage: MessageStorage):
         self.message_socket = message_socket
@@ -128,7 +130,7 @@ class CommunicationServer(CommunicationEndpoint):
         message_storage = MessageStorage()
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        message_socket.bind(('', PORT))
+        message_socket.bind((SERVER_IP, SERVER_PORT))
 
         super().__init__(message_socket, message_storage)
 
@@ -156,7 +158,7 @@ class CommunicationServer(CommunicationEndpoint):
     def send_to_all(self, message):
         packet = get_packet(message)
         for player in self.connected_players.values():
-            self.message_socket.sendto(packet, (player.ip, PORT))
+            self.message_socket.sendto(packet, (player.ip, CLIENT_PORT))
 
         if self.hosting_client != None:
             self.hosting_client.handle_message(message)
@@ -166,7 +168,7 @@ class CommunicationServer(CommunicationEndpoint):
         for i in range(RELIABLE_MESSAGE_SEND_COUNT):
             self.send_to_all(message)
 
-class CommunicationClient(ABC):
+class CommunicationClient(ABC, object):
 
     def __init__(self):
         self.id = messages.get_new_player_id()
@@ -186,12 +188,12 @@ class CommunicationClient(ABC):
 class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
 
     def __init__(self, start = False):
-        super(CommunicationClient, self).__init__()
+        CommunicationClient.__init__(self)
         self.reliable_message_id_storage = ConstSizeQueue(RELIABLE_MESSAGE_ID_STORAGE_SIZE)
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        message_socket.bind(('', PORT))
-        super(CommunicationEndpoint, self).__init__(message_socket, MessageStorage())
+        message_socket.bind((CLIENT_IP, CLIENT_PORT))
+        CommunicationEndpoint.__init__(self, message_socket, MessageStorage())
 
         if start:
             self.start()
@@ -206,7 +208,7 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
     def send(self, message):
         message = messages.MessageToServerWithId(self.id, message)
         packet = get_packet(message)
-        self.message_socket.sendto(packet, (PUBLIC_IP, PORT))
+        self.message_socket.sendto(packet, (SERVER_IP, SERVER_PORT))
 
     def send_reliable(self, message):
         message = ReliableMessage(message)

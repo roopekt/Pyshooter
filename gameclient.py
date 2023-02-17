@@ -3,10 +3,13 @@ from pygame import Color
 from communication import CommunicationClient
 import messages
 import player
+import bullet
 from pymunk import Vec2d
 import mymath
+from time import time
 
 MAX_FPS = 60
+RELOAD_TIME = 1 # in seconds
 
 class GameClient:
 
@@ -18,6 +21,8 @@ class GameClient:
         self.players = {
             self.communication_client.id : player.ClientPlayer(is_owned_by_client=True)
         }
+        self.bullets: dict[messages.ObjectId, bullet.ClientBullet] = {}
+        self.time_of_last_shoot = time()
 
     def mainloop(self):
         pygame.init()
@@ -36,11 +41,13 @@ class GameClient:
         pygame.quit()
 
     def handle_input(self):
+        self.get_own_avatar().mouse_position_world_space = self.get_world_position(pygame.mouse.get_pos())
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.should_run = False
-
-        self.get_own_avatar().mouse_position_world_space = self.get_world_position(pygame.mouse.get_pos())
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                self.shoot()
 
     def handle_messages(self):
         for message in self.communication_client.poll_messages():
@@ -49,6 +56,14 @@ class GameClient:
                     self.players[message.player_id] = player.ClientPlayer(is_owned_by_client=False)
 
                 self.players[message.player_id].update_state(message)
+            elif isinstance(message, messages.BulletStateUpdate):
+                if message.bullet_id in self.bullets:
+                    self.bullets[message.bullet_id].update_state(message)
+                else:
+                    self.bullets[message.bullet_id] = bullet.ClientBullet(
+                        position = message.position,
+                        radius = message.radius
+                    )
             else:
                 raise Exception(f"Client cannot handle a {type(message)}.")
 
@@ -75,7 +90,28 @@ class GameClient:
                     player.RADIUS * graphic_scaler / 3
                 )
 
+        for _bullet in self.bullets.values():
+            pygame.draw.circle(
+                self.window,
+                Color("white"),
+                self.get_screen_position(_bullet.position),
+                _bullet.radius * graphic_scaler
+            )
+
         pygame.display.flip()
+
+    def shoot(self):
+        time_of_shoot = time()
+        elapsed = time_of_shoot - self.time_of_last_shoot
+        self.time_of_last_shoot = time_of_shoot
+        relative_size = min(1, elapsed / RELOAD_TIME)
+
+        own_avatar = self.get_own_avatar()
+        self.communication_client.send_reliable(messages.ShootMessage(
+            player_position = own_avatar.position,
+            mouse_position_world_space = own_avatar.mouse_position_world_space,
+            relative_size = relative_size
+        ))
 
     def get_screen_position(self, world_position: Vec2d):
         window_size = mymath.tuple_to_pymunk_vec(self.window.get_size())

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 RADIUS = 0.5
+RECOIL_STRENGTH = 8
 
 @dataclass
 class ClientPlayer:
@@ -20,7 +21,7 @@ class ClientPlayer:
 
 class ServerPlayer:
     
-    def __init__(self, id: messages.PlayerId, physics_world: pymunk.Space):
+    def __init__(self, id: messages.ObjectId, physics_world: pymunk.Space):
         self.id = id
         self.mouse_position_world_space = Vec2d.zero()
 
@@ -37,3 +38,8 @@ class ServerPlayer:
             position = self.physics_body.position,
             mouse_position_world_space = self.mouse_position_world_space
         )
+
+    def apply_recoil(self, shoot_message: messages.ShootMessage):
+        shoot_direction = (shoot_message.mouse_position_world_space - shoot_message.player_position).normalized()
+        impulse = -shoot_message.relative_size**2 * RECOIL_STRENGTH * shoot_direction
+        self.physics_body.apply_impulse_at_local_point(impulse)

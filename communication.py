@@ -126,7 +126,7 @@ class CommunicationServer(CommunicationEndpoint):
 
     def __init__(self, start = False):
         self.hosting_client: Optional[HostingCommunicationClient] = None
-        self.connected_players: dict[messages.PlayerId, ServerSidePlayerHandle] = {}
+        self.connected_players: dict[messages.ObjectId, ServerSidePlayerHandle] = {}
         message_storage = MessageStorage()
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
@@ -138,7 +138,7 @@ class CommunicationServer(CommunicationEndpoint):
             self.start()
 
     def get_reliable_message_id_storage(self, message, address) -> ConstSizeQueue:
-        player_id = message.payload.player_id
+        player_id = message.payload.sender_id
         self.add_player_if_new(player_id, address)
         return self.connected_players[player_id].reliable_message_id_storage
 
@@ -147,7 +147,7 @@ class CommunicationServer(CommunicationEndpoint):
         self.add_player_if_new(message.sender_id, address)
         self.enqueue_message(message)
 
-    def add_player_if_new(self, player_id: messages.PlayerId, address):
+    def add_player_if_new(self, player_id: messages.ObjectId, address):
         known_ids = list(self.connected_players.keys())
         if self.hosting_client != None:
             known_ids.append(self.hosting_client.id)
@@ -171,7 +171,7 @@ class CommunicationServer(CommunicationEndpoint):
 class CommunicationClient(ABC, object):
 
     def __init__(self):
-        self.id = messages.get_new_player_id()
+        self.id = messages.get_new_object_id()
 
     @abstractmethod
     def send(self, message):
@@ -206,14 +206,13 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
         self.enqueue_message(message)
 
     def send(self, message):
-        message = messages.MessageToServerWithId(self.id, message)
-        packet = get_packet(message)
+        packet = get_packet(messages.MessageToServerWithId(self.id, message))
         self.message_socket.sendto(packet, (SERVER_IP, SERVER_PORT))
 
     def send_reliable(self, message):
-        message = ReliableMessage(message)
+        packet = get_packet(ReliableMessage(messages.MessageToServerWithId(self.id, message)))
         for i in range(RELIABLE_MESSAGE_SEND_COUNT):
-            self.send(message)
+            self.message_socket.sendto(packet, (SERVER_IP, SERVER_PORT))
 
 # on the same machine as server, doesn't need internet
 class HostingCommunicationClient(CommunicationClient):
@@ -238,7 +237,7 @@ class HostingCommunicationClient(CommunicationClient):
 
 class ServerSidePlayerHandle:
 
-    def __init__(self, player_id: messages.PlayerId, ip: str):
+    def __init__(self, player_id: messages.ObjectId, ip: str):
         self.id = player_id
         self.ip = ip
         self.reliable_message_id_storage = ConstSizeQueue(RELIABLE_MESSAGE_ID_STORAGE_SIZE)

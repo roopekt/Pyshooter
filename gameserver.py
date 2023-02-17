@@ -5,8 +5,9 @@ import threading
 from communication import CommunicationServer
 import messages
 import player
+import bullet
 
-MAX_FPS = 50
+MAX_TPS = 50
 
 class GameServer:
     
@@ -15,7 +16,8 @@ class GameServer:
         self.physics_world.gravity = Vec2d(0, -9.81)
         self.server_thread = None
         self.communication_server = communication_server
-        self.players: dict[str, player.ServerPlayer] = {}
+        self.players: dict[messages.ObjectId, player.ServerPlayer] = {}
+        self.bullets: list[bullet.ServerBullet] = []
 
         self.floor_body = pymunk.Body(body_type=pymunk.Body.STATIC)
         self.floor_collider = pymunk.Segment(self.floor_body, (-100, 0), (100, 0), radius=0)
@@ -29,9 +31,12 @@ class GameServer:
         self.should_run = True
         clock = pygame.time.Clock()
         while self.should_run:
-            clock.tick(MAX_FPS)
+            clock.tick(MAX_TPS)
+            delta_time = 1/MAX_TPS
+
             self.handle_messages()
-            self.physics_world.step(1/MAX_FPS)
+            self.physics_world.step(delta_time)
+            self.update_bullets(delta_time)
             self.send_post_frame_messages()
 
     def handle_messages(self):
@@ -44,12 +49,21 @@ class GameServer:
 
             if isinstance(message, messages.MousePositionUpdate):
                 self.players[sender_id].mouse_position_world_space = message.mouse_position_world_space
+            elif isinstance(message, messages.ShootMessage):
+                self.bullets.append(bullet.ServerBullet(message, sender_id))
+                self.players[sender_id].apply_recoil(message)
             else:
                 raise Exception(f"Server cannot handle a {type(message)}.")
+
+    def update_bullets(self, delta_time: float):
+        for bullet in self.bullets:
+            bullet.update_position(delta_time)
 
     def send_post_frame_messages(self):
         for player in self.players.values():
             self.communication_server.send_to_all(player.get_position_update_message())
+        for bullet in self.bullets:
+            self.communication_server.send_to_all(bullet.get_state_update_message())
 
     def start(self):
         assert(self.server_thread == None)

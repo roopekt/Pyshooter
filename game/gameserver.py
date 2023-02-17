@@ -5,8 +5,7 @@ from threading import Thread
 from thread_owner import ThreadOwner
 from communication import CommunicationServer
 import messages
-import player
-import bullet
+from . import player, bullet
 
 MAX_TPS = 50
 

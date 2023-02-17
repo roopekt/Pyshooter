@@ -2,8 +2,7 @@ import pygame
 from pygame import Color
 from communication import CommunicationClient
 import messages
-import player
-import bullet
+from . import player, bullet
 from pymunk import Vec2d
 import mymath
 from time import time

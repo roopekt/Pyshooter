@@ -1,5 +1,5 @@
-from gameserver import GameServer
-from gameclient import GameClient
+from game.gameserver import GameServer
+from game.gameclient import GameClient
 import communication
 import argument_parser
 

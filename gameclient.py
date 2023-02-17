@@ -16,7 +16,7 @@ class GameClient:
     def __init__(self, communication_client: CommunicationClient):
         self.communication_client = communication_client
         self.camera_position = Vec2d.zero()
-        self.camera_height = 15
+        self.camera_height = 25
 
         self.players = {
             self.communication_client.id : player.ClientPlayer(is_owned_by_client=True)
@@ -35,6 +35,7 @@ class GameClient:
             clock.tick(MAX_FPS)
             self.handle_input()
             self.handle_messages()
+            self.update_camera()
             self.send_post_frame_messages()
             self.render()
 
@@ -66,6 +67,9 @@ class GameClient:
                     )
             else:
                 raise Exception(f"Client cannot handle a {type(message)}.")
+
+    def update_camera(self):
+        self.camera_position = self.get_own_avatar().position
 
     def send_post_frame_messages(self):
         self.communication_client.send(messages.MousePositionUpdate(self.get_own_avatar().mouse_position_world_space))

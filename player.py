@@ -2,7 +2,6 @@ import pymunk
 from pymunk import Vec2d
 import messages
 from dataclasses import dataclass, field
-from typing import Optional
 
 RADIUS = 0.5
 RECOIL_STRENGTH = 8
@@ -10,7 +9,7 @@ RECOIL_STRENGTH = 8
 @dataclass
 class ClientPlayer:
     is_owned_by_client: bool # true if this is the avatar of the client of this machine
-    position: Optional[Vec2d] = None
+    position: Vec2d = field(default_factory=Vec2d.zero)
     mouse_position_world_space: Vec2d = field(default_factory=Vec2d.zero)
 
     def update_state(self, update_message: messages.PlayerStateUpdate):

@@ -3,12 +3,12 @@ import threading
 from thread_owner import ThreadOwner
 import pickle
 import messages
-from random import getrandbits
+from random import getrandbits, randint
 from abc import ABC, abstractmethod
 from typing import Optional
 
-SERVER_PORT = 29801
-CLIENT_PORT = SERVER_PORT + 1
+SERVER_PORT = 29800
+CLIENT_PORT = SERVER_PORT + randint(0, 1000)
 SERVER_IP = "127.0.0.1" #"195.148.39.50"
 CLIENT_IP = SERVER_IP
 # LOCAL_IP = "10.90.77.3"
@@ -146,12 +146,12 @@ class CommunicationServer(CommunicationEndpoint):
             known_ids.append(self.hosting_client.id)
 
         if player_id not in known_ids:
-            self.connected_players[player_id] = ServerSidePlayerHandle(player_id, address[0])
+            self.connected_players[player_id] = ServerSidePlayerHandle(player_id, address)
 
     def send_to_all(self, message):
         packet = get_packet(message)
         for player in self.connected_players.values():
-            self.message_socket.sendto(packet, (player.ip, CLIENT_PORT))
+            self.message_socket.sendto(packet, player.address)
 
         if self.hosting_client != None:
             self.hosting_client.handle_message(message)
@@ -230,7 +230,7 @@ class HostingCommunicationClient(CommunicationClient):
 
 class ServerSidePlayerHandle:
 
-    def __init__(self, player_id: messages.ObjectId, ip: str):
+    def __init__(self, player_id: messages.ObjectId, address: tuple[str, int]):
         self.id = player_id
-        self.ip = ip
+        self.address = address
         self.reliable_message_id_storage = ConstSizeQueue(RELIABLE_MESSAGE_ID_STORAGE_SIZE)

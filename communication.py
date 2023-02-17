@@ -1,5 +1,6 @@
 import socket
 import threading
+from thread_owner import ThreadOwner
 import pickle
 import messages
 from random import getrandbits
@@ -76,13 +77,14 @@ def receive_message(socket: socket.socket):
     message = pickle.loads(payload)
     return message, address
 
-class CommunicationEndpoint(ABC, object):
+class CommunicationEndpoint(ThreadOwner, ABC):
 
-    def __init__(self, message_socket: socket.socket, message_storage: MessageStorage):
+    def __init__(self, message_socket: socket.socket, message_storage: MessageStorage, thread_name: str):
         self.message_socket = message_socket
-        self.should_run = False
-
         self.message_storage = message_storage
+
+        ThreadOwner.__init__(self)
+        self.add_thread(threading.Thread(target=self.inwards_message_mainloop, daemon=True), thread_name)
 
     @abstractmethod
     def get_reliable_message_id_storage(self, message: ReliableMessage, address) -> ConstSizeQueue:
@@ -94,7 +96,7 @@ class CommunicationEndpoint(ABC, object):
 
     def inwards_message_mainloop(self):
         with self.message_socket as socket:
-            while self.should_run:
+            while self.running:
                 message, address = receive_message(socket)
 
                 if isinstance(message, ReliableMessage):
@@ -106,15 +108,6 @@ class CommunicationEndpoint(ABC, object):
                         message = message.payload
 
                 self.handle_message(message, address)
-
-    def start(self):
-        self.should_run = True
-        self.inwards_message_thread = threading.Thread(target=self.inwards_message_mainloop, daemon=True)
-        self.inwards_message_thread.start()
-
-    def stop_async(self):
-        if self.inwards_message_thread != None:
-            self.should_run = False
 
     def poll_messages(self):
         return self.message_storage.poll()
@@ -132,7 +125,7 @@ class CommunicationServer(CommunicationEndpoint):
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         message_socket.bind((SERVER_IP, SERVER_PORT))
 
-        super().__init__(message_socket, message_storage)
+        super().__init__(message_socket, message_storage, "CommServer")
 
         if start:
             self.start()
@@ -193,7 +186,7 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         message_socket.bind((CLIENT_IP, CLIENT_PORT))
-        CommunicationEndpoint.__init__(self, message_socket, MessageStorage())
+        CommunicationEndpoint.__init__(self, message_socket, MessageStorage(), "InetCommClient")
 
         if start:
             self.start()

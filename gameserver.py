@@ -1,7 +1,8 @@
 import pygame
 import pymunk
 from pymunk import Vec2d
-import threading
+from threading import Thread
+from thread_owner import ThreadOwner
 from communication import CommunicationServer
 import messages
 import player
@@ -9,12 +10,11 @@ import bullet
 
 MAX_TPS = 50
 
-class GameServer:
+class GameServer(ThreadOwner):
     
     def __init__(self, communication_server: CommunicationServer, start = False):
         self.physics_world = pymunk.Space()
         self.physics_world.gravity = Vec2d(0, -9.81)
-        self.server_thread = None
         self.communication_server = communication_server
         self.players: dict[messages.ObjectId, player.ServerPlayer] = {}
         self.bullets: list[bullet.ServerBullet] = []
@@ -24,8 +24,8 @@ class GameServer:
         self.floor_collider.elasticity = 0.8
         self.physics_world.add(self.floor_body, self.floor_collider)
 
-        if start:
-            self.start()
+        ThreadOwner.__init__(self, start_immediately=start)
+        self.add_thread(Thread(target=self.mainloop), "GameServer")
 
     def mainloop(self):
         self.should_run = True
@@ -64,15 +64,3 @@ class GameServer:
             self.communication_server.send_to_all(player.get_position_update_message())
         for bullet in self.bullets:
             self.communication_server.send_to_all(bullet.get_state_update_message())
-
-    def start(self):
-        assert(self.server_thread == None)
-        self.server_thread = threading.Thread(target=self.mainloop)
-        self.server_thread.start()
-
-    def stop(self):
-        if self.server_thread != None:
-            self.should_run = False
-            self.server_thread.join()
-            self.server_thread = None
-

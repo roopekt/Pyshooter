@@ -18,7 +18,7 @@ game_server.start()
 
 game_client.mainloop()
 
-communication_server.stop_async()
+communication_server.stop(asyncronous=True)
 if not connect_directly:
-    communication_client.stop_async()
+    communication_client.stop(asyncronous=True)
 game_server.stop()

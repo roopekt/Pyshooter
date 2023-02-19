@@ -1,6 +1,8 @@
 import pymunk
 from pymunk import Vec2d
 import messages
+from .camera import Camera
+import pygame
 
 MAX_RADIUS = 0.3
 SPAWN_OFFSET = 0.5 # offset from the center of player
@@ -39,3 +41,11 @@ class ClientBullet:
 
     def update_state(self, update_message: messages.BulletStateUpdate):
         self.position = update_message.position
+
+    def render(self, camera: Camera):
+        pygame.draw.circle(
+            camera.window,
+            pygame.Color("black"),
+            camera.get_screen_position(self.position),
+            self.radius * camera.get_graphical_scale_factor()
+        )

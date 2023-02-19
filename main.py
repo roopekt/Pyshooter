@@ -1,9 +1,9 @@
 from game.gameserver import GameServer
 from game.gameclient import GameClient
 import communication
-import argument_parser
+import argumentparser
 
-arguments = argument_parser.get_arguments()
+arguments = argumentparser.get_arguments()
 
 if not arguments.client_only:
     communication_server = communication.CommunicationServer(start=True)

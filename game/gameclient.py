@@ -1,5 +1,4 @@
 import pygame
-from pygame import Color
 from communication import CommunicationClient
 import messages
 from . import player, bullet
@@ -75,32 +74,12 @@ class GameClient:
 
     def render(self):
         graphic_scaler = self.camera.get_graphical_scale_factor()
-        self.window.fill(Color("black"))
         self.background.render(self.camera)
 
         for _player in self.players.values():
-            if _player.position != None:
-                pygame.draw.circle(
-                    self.window,
-                    Color(255, 0, 0),
-                    self.camera.get_screen_position(_player.position),
-                    player.RADIUS * graphic_scaler
-                )
-                gun_pos = _player.position + (_player.mouse_position_world_space - _player.position).scale_to_length(player.RADIUS)
-                pygame.draw.circle(
-                    self.window,
-                    Color(255, 255, 0),
-                    self.camera.get_screen_position(gun_pos),
-                    player.RADIUS * graphic_scaler / 3
-                )
-
+            _player.render(self.camera)
         for _bullet in self.bullets.values():
-            pygame.draw.circle(
-                self.window,
-                Color("white"),
-                self.camera.get_screen_position(_bullet.position),
-                _bullet.radius * graphic_scaler
-            )
+            _bullet.render(self.camera)
 
         pygame.display.flip()
 

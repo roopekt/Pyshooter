@@ -2,11 +2,11 @@ from dataclasses import dataclass
 from abc import ABC
 from pymunk import Vec2d
 from typing import NewType
-from random import randint
+from random import randbytes
 
 ObjectId = NewType("ObjectId", int)
 def get_new_object_id():
-    return ObjectId(randint(0, 0xFF_FF_FF_FF))
+    return ObjectId(int.from_bytes(randbytes(4), "big"))
 
 class MessageToServer(ABC):
     pass
@@ -40,3 +40,7 @@ class BulletStateUpdate(MessageToClient):
     bullet_id: ObjectId
     position: Vec2d
     radius: float
+
+@dataclass
+class BulletDestroyMessage(MessageToClient):
+    bullet_id: ObjectId

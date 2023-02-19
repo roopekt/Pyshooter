@@ -7,6 +7,7 @@ import pygame
 MAX_RADIUS = 0.3
 SPAWN_OFFSET = 0.5 # offset from the center of player
 SPEED = 10
+MAX_TRAVEL_DISTANCE = 80
 
 class ServerBullet:
 
@@ -16,11 +17,11 @@ class ServerBullet:
         self.radius = shoot_message.relative_size * MAX_RADIUS
 
         shoot_direction = (shoot_message.mouse_position_world_space - shoot_message.player_position).normalized()
-        initial_position = shoot_message.player_position + shoot_direction * SPAWN_OFFSET
+        self.initial_position = shoot_message.player_position + shoot_direction * SPAWN_OFFSET
         self.velocity = SPEED * shoot_direction
 
         self.physics_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
-        self.physics_body.position = initial_position
+        self.physics_body.position = self.initial_position
         self.collider = pymunk.Circle(self.physics_body, radius=self.radius)
 
     def update_position(self, delta_time):
@@ -32,6 +33,10 @@ class ServerBullet:
             position = self.physics_body.position,
             radius = self.radius
         )
+    
+    def should_be_destroyed(self):
+        travel_distance_squared = Vec2d.get_dist_sqrd(self.initial_position, self.physics_body.position)
+        return travel_distance_squared > MAX_TRAVEL_DISTANCE**2
 
 class ClientBullet:
 

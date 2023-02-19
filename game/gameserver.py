@@ -55,8 +55,16 @@ class GameServer(ThreadOwner):
                 raise Exception(f"Server cannot handle a {type(message)}.")
 
     def update_bullets(self, delta_time: float):
+        bullets_to_destroy = []
         for bullet in self.bullets:
             bullet.update_position(delta_time)
+
+            if bullet.should_be_destroyed():
+                bullets_to_destroy.append(bullet)
+                self.communication_server.send_to_all_reliable(messages.BulletDestroyMessage(bullet.id))
+
+        for bullet in bullets_to_destroy:
+            self.bullets.remove(bullet)
 
     def send_post_frame_messages(self):
         for player in self.players.values():

@@ -63,6 +63,8 @@ class GameClient:
                         position = message.position,
                         radius = message.radius
                     )
+            elif isinstance(message, messages.BulletDestroyMessage):
+                self.bullets.pop(message.bullet_id)
             else:
                 raise Exception(f"Client cannot handle a {type(message)}.")
 
@@ -73,7 +75,6 @@ class GameClient:
         self.communication_client.send(messages.MousePositionUpdate(self.get_own_avatar().mouse_position_world_space))
 
     def render(self):
-        graphic_scaler = self.camera.get_graphical_scale_factor()
         self.background.render(self.camera)
 
         for _player in self.players.values():

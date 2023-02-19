@@ -18,7 +18,7 @@ class Camera:
         p = Vec2d(p.x, -p.y)
         p *= self.get_graphical_scale_factor()
         p += self.get_window_size() / 2
-        return pygame.Vector2(p.x, p.y)
+        return mymath.pymunk_vec_to_pygame_vec(p)
 
     def get_world_position(self, screen_position: tuple[float, float]):
         p = mymath.tuple_to_pymunk_vec(screen_position)

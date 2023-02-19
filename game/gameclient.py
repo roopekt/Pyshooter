@@ -5,6 +5,8 @@ from . import player, bullet
 from time import time
 from .camera import Camera
 from .background import Background
+from .floor import ClientFloor
+from pymunk import Vec2d
 
 MAX_FPS = 60
 RELOAD_TIME = 1 # in seconds
@@ -23,6 +25,7 @@ class GameClient:
         pygame.init()
         self.window = pygame.display.set_mode((640, 480), pygame.RESIZABLE)
         self.background = Background()
+        self.floor = ClientFloor()
         self.camera = Camera(self.window)
 
     def mainloop(self):
@@ -76,6 +79,7 @@ class GameClient:
 
     def render(self):
         self.background.render(self.camera)
+        self.floor.render(self.camera)
 
         for _player in self.players.values():
             _player.render(self.camera)

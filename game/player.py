@@ -14,14 +14,15 @@ class ServerPlayer:
         self.id = id
         self.mouse_position_world_space = Vec2d.zero()
 
-        self.physics_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC)
+        self.physics_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=1, moment=float("inf"))
         self.physics_body.position = Vec2d(0, 5)
         self.collider = pymunk.Circle(self.physics_body, radius=RADIUS)
-        self.collider.density = 1
         self.collider.elasticity = 0.8
+        self.collider.friction = 0.5
         physics_world.add(self.physics_body, self.collider)
 
     def get_position_update_message(self):
+        print(self.physics_body.velocity, self.physics_body.angle)
         return messages.PlayerStateUpdate(
             player_id = self.id,
             position = self.physics_body.position,

@@ -6,6 +6,7 @@ from thread_owner import ThreadOwner
 from communication import CommunicationServer
 import messages
 from . import player, bullet
+from .floor import ServerFloor
 
 MAX_TPS = 50
 
@@ -14,22 +15,19 @@ class GameServer(ThreadOwner):
     def __init__(self, communication_server: CommunicationServer, start = False):
         self.physics_world = pymunk.Space()
         self.physics_world.gravity = Vec2d(0, -9.81)
+        # self.physics_world.damping = 0.9
+
         self.communication_server = communication_server
         self.players: dict[messages.ObjectId, player.ServerPlayer] = {}
         self.bullets: list[bullet.ServerBullet] = []
-
-        self.floor_body = pymunk.Body(body_type=pymunk.Body.STATIC)
-        self.floor_collider = pymunk.Segment(self.floor_body, (-100, 0), (100, 0), radius=0)
-        self.floor_collider.elasticity = 0.8
-        self.physics_world.add(self.floor_body, self.floor_collider)
+        self.floor = ServerFloor(self.physics_world)
 
         ThreadOwner.__init__(self, start_immediately=start)
         self.add_thread(Thread(target=self.mainloop), "GameServer")
 
     def mainloop(self):
-        self.should_run = True
         clock = pygame.time.Clock()
-        while self.should_run:
+        while self.running:
             clock.tick(MAX_TPS)
             delta_time = 1/MAX_TPS
 

@@ -11,7 +11,7 @@ MAX_TRAVEL_DISTANCE = 80
 
 class ServerBullet:
 
-    def __init__(self, shoot_message: messages.ShootMessage, shooter_id: messages.ObjectId):
+    def __init__(self, shoot_message: messages.ShootMessage, shooter_id: messages.ObjectId, physics_world: pymunk.Space):
         self.id = messages.get_new_object_id()
         self.shooter_id = shooter_id
         self.radius = shoot_message.relative_size * MAX_RADIUS
@@ -23,6 +23,10 @@ class ServerBullet:
         self.physics_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
         self.physics_body.position = self.initial_position
         self.collider = pymunk.Circle(self.physics_body, radius=self.radius)
+        self.collider.sensor = True
+        self.collider.type = ServerBullet
+        self.collider.object_id = self.id
+        physics_world.add(self.physics_body, self.collider)
 
     def update_position(self, delta_time):
         self.physics_body.position += self.velocity * delta_time

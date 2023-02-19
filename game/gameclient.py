@@ -67,7 +67,8 @@ class GameClient:
                         radius = message.radius
                     )
             elif isinstance(message, messages.BulletDestroyMessage):
-                self.bullets.pop(message.bullet_id)
+                if message.bullet_id in self.bullets:
+                    self.bullets.pop(message.bullet_id)
             else:
                 raise Exception(f"Client cannot handle a {type(message)}.")
 

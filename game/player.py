@@ -19,10 +19,11 @@ class ServerPlayer:
         self.collider = pymunk.Circle(self.physics_body, radius=RADIUS)
         self.collider.elasticity = 0.8
         self.collider.friction = 0.5
+        self.collider.type = ServerPlayer
+        self.collider.object_id = self.id
         physics_world.add(self.physics_body, self.collider)
 
     def get_position_update_message(self):
-        print(self.physics_body.velocity, self.physics_body.angle)
         return messages.PlayerStateUpdate(
             player_id = self.id,
             position = self.physics_body.position,

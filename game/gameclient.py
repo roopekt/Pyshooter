@@ -40,8 +40,6 @@ class GameClient:
             self.send_post_frame_messages()
             self.render()
 
-        pygame.quit()
-
     def handle_input(self):
         self.get_own_avatar().mouse_position_world_space = self.camera.get_world_position(pygame.mouse.get_pos())
 

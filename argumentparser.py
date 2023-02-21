@@ -1,27 +1,40 @@
 import argparse
 from dataclasses import dataclass
+from typing import Optional
 
 @dataclass
 class ParsedArguments:
-    client_only: bool
-    connect_directly: bool
-
+    is_host: bool
+    local_ip: str
+    remote_server_ip: Optional[str]
 
 def get_arguments():
-    parser = argparse.ArgumentParser(description = "A simple multiplayer shooting game.")
-    parser.add_argument('--client_only', action="store_true",
-        help="don't start a new server, connect to an existing one")
-    parser.add_argument("--connect_directly", action="store_true",
-        help="this client and created server shall communicate without internet")
-
+    parser = argparse.ArgumentParser(
+        description = "A simple multiplayer shooting game. With no arguments, a host will be started on localhost.")
+    parser.add_argument("client_type", choices=["host", "guest"],
+                        help="host = start a server, guest = join a server")
+    parser.add_argument("local_ip",
+                        help="Local ip address (ipv4) of this machine.")
+    parser.add_argument("-s", "--server_ip", default=None,
+                        help="Ip address of the server (only specify for guest).")
     arguments = parser.parse_args()
-    arguments = ParsedArguments(
-        client_only = arguments.client_only,
-        connect_directly = arguments.connect_directly
-    )
 
-    if arguments.client_only and arguments.connect_directly:
-        raise Exception("Invalid argument combination (client_only & connect_directly).\n"
-            + "Connection to a remote server requiers internet.")
+    if arguments.client_type == "host":
+        is_host = True
+    elif arguments.client_type == "guest":
+        is_host = False
+    else:
+        raise Exception(f"Unknown client type {arguments.client_type}")
+    
+    if is_host and arguments.server_ip != None:
+        raise Exception("Please don't specify server_ip for host.")
+    elif (not is_host) and arguments.server_ip == None:
+        raise Exception("Expected a server_ip.")
+    
+    arguments = ParsedArguments(
+        is_host = is_host,
+        local_ip = arguments.local_ip,
+        remote_server_ip = arguments.server_ip
+    )
 
     return arguments

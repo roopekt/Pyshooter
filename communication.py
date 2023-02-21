@@ -3,15 +3,10 @@ import threading
 from thread_owner import ThreadOwner
 import pickle
 import messages
-from random import getrandbits, randint
+from random import getrandbits
 from abc import ABC, abstractmethod
 from typing import Optional
 
-SERVER_PORT = 29800
-CLIENT_PORT = SERVER_PORT + randint(0, 1000)
-SERVER_IP = "127.0.0.1" #"195.148.39.50"
-CLIENT_IP = SERVER_IP
-# LOCAL_IP = "10.90.77.3"
 MESSAGE_START = b"v!P2"
 RELIABLE_MESSAGE_SEND_COUNT = 3
 RELIABLE_MESSAGE_ID_STORAGE_SIZE = 1024
@@ -117,13 +112,13 @@ class CommunicationEndpoint(ThreadOwner, ABC):
 
 class CommunicationServer(CommunicationEndpoint):
 
-    def __init__(self, start = False):
+    def __init__(self, address, start = False):
         self.hosting_client: Optional[HostingCommunicationClient] = None
         self.connected_players: dict[messages.ObjectId, ServerSidePlayerHandle] = {}
         message_storage = MessageStorage()
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        message_socket.bind((SERVER_IP, SERVER_PORT))
+        message_socket.bind(address)
 
         super().__init__(message_socket, message_storage, "CommServer")
 
@@ -149,17 +144,23 @@ class CommunicationServer(CommunicationEndpoint):
             self.connected_players[player_id] = ServerSidePlayerHandle(player_id, address)
 
     def send_to_all(self, message):
-        packet = get_packet(message)
-        for player in self.connected_players.values():
-            self.message_socket.sendto(packet, player.address)
+        self.send_to_all_remote_clients(message)
 
         if self.hosting_client != None:
             self.hosting_client.handle_message(message)
 
     def send_to_all_reliable(self, message):
-        message = ReliableMessage(message)
+        reliable_message = ReliableMessage(message)
         for i in range(RELIABLE_MESSAGE_SEND_COUNT):
-            self.send_to_all(message)
+            self.send_to_all_remote_clients(reliable_message)
+
+        if self.hosting_client != None:
+            self.hosting_client.handle_message(message)
+
+    def send_to_all_remote_clients(self, message):
+        packet = get_packet(message)
+        for player in self.connected_players.values():
+            self.message_socket.sendto(packet, player.address)
 
 class CommunicationClient(ABC, object):
 
@@ -180,12 +181,13 @@ class CommunicationClient(ABC, object):
 
 class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
 
-    def __init__(self, start = False):
+    def __init__(self, own_address, server_address, start = False):
         CommunicationClient.__init__(self)
         self.reliable_message_id_storage = ConstSizeQueue(RELIABLE_MESSAGE_ID_STORAGE_SIZE)
+        self.server_address = server_address
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        message_socket.bind((CLIENT_IP, CLIENT_PORT))
+        message_socket.bind(own_address)
         CommunicationEndpoint.__init__(self, message_socket, MessageStorage(), "InetCommClient")
 
         if start:
@@ -200,12 +202,12 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
 
     def send(self, message):
         packet = get_packet(messages.MessageToServerWithId(self.id, message))
-        self.message_socket.sendto(packet, (SERVER_IP, SERVER_PORT))
+        self.message_socket.sendto(packet, self.server_address)
 
     def send_reliable(self, message):
         packet = get_packet(ReliableMessage(messages.MessageToServerWithId(self.id, message)))
         for i in range(RELIABLE_MESSAGE_SEND_COUNT):
-            self.message_socket.sendto(packet, (SERVER_IP, SERVER_PORT))
+            self.message_socket.sendto(packet, self.server_address)
 
 # on the same machine as server, doesn't need internet
 class HostingCommunicationClient(CommunicationClient):

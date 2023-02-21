@@ -47,7 +47,8 @@ class GameClient:
             if event.type == pygame.QUIT:
                 self.should_run = False
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self.shoot()
+                if self.get_own_avatar().health > 0:
+                    self.shoot()
 
     def handle_messages(self):
         for message in self.communication_client.poll_messages():

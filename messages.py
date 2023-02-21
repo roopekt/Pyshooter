@@ -27,6 +27,7 @@ class MousePositionUpdate(MessageToServer):
 class PlayerStateUpdate(MessageToClient):
     player_id: ObjectId
     position: Vec2d
+    health: float
     mouse_position_world_space: Vec2d
 
 @dataclass

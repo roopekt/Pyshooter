@@ -90,7 +90,8 @@ class GameServer(ThreadOwner):
                     self.destroy_bullet(colliderB.object_id)
                     return True
                 elif colliderB.type == ServerPlayer and colliderB.object_id != bulletA.shooter_id:
-                    self.destroy_bullet(colliderA.object_id)
+                    self.players[colliderB.object_id].health -= bulletA.damage
+                    self.destroy_bullet(bulletA.id)
                     print(f"hit player {colliderB.object_id}")
                     return True
 

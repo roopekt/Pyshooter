@@ -13,7 +13,7 @@ class ServerFloor:
         self.id = messages.get_new_object_id()
         self.body = pymunk.Body(body_type=pymunk.Body.STATIC, mass=1)
         self.collider = pymunk.Segment(self.body, (-1000, 0), (1000, 0), radius=0)
-        self.collider.elasticity = 0
+        self.collider.elasticity = 0.8
         self.collider.friction = 0.5
         self.collider.type = ServerFloor
         self.collider.object_id = self.id

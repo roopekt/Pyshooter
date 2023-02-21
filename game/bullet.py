@@ -6,8 +6,9 @@ import pygame
 
 MAX_RADIUS = 0.3
 SPAWN_OFFSET = 0.5 # offset from the center of player
-SPEED = 10
+SPEED = 20
 MAX_TRAVEL_DISTANCE = 80
+MAX_DAMAGE = 1
 
 class ServerBullet:
 
@@ -15,6 +16,7 @@ class ServerBullet:
         self.id = messages.get_new_object_id()
         self.shooter_id = shooter_id
         self.radius = shoot_message.relative_size * MAX_RADIUS
+        self.damage = shoot_message.relative_size**2 * MAX_DAMAGE
 
         shoot_direction = (shoot_message.mouse_position_world_space - shoot_message.player_position).normalized()
         self.initial_position = shoot_message.player_position + shoot_direction * SPAWN_OFFSET

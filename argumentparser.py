@@ -12,11 +12,11 @@ def get_arguments():
     parser = argparse.ArgumentParser(
         description = "A simple multiplayer shooting game. With no arguments, a host will be started on localhost.")
     parser.add_argument("client_type", choices=["host", "guest"],
-                        help="host = start a server, guest = join a server")
-    parser.add_argument("local_ip",
-                        help="Local ip address (ipv4) of this machine.")
+        help="host = start a server, guest = join a server")
     parser.add_argument("-s", "--server_ip", default=None,
-                        help="Ip address of the server (only specify for guest).")
+        help="Ip address of the server (only specify for guest).")
+    parser.add_argument("-l", "--local_ip", default=None,
+        help="Local ip address (ipv4) of this machine. The game should be able to find this automatically.")
     arguments = parser.parse_args()
 
     if arguments.client_type == "host":

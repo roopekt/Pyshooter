@@ -1,8 +1,12 @@
 import argumentparser
 from sys import argv
+import ipfinder
 
 if len(argv) > 1:
     arguments = argumentparser.get_arguments()
+
+    if arguments.local_ip == None:
+        arguments.local_ip = ipfinder.get_local_ip()
 else:
     arguments = argumentparser.ParsedArguments(
         is_host = True,

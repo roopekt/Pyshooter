@@ -79,8 +79,6 @@ class GameServer(ThreadOwner):
             self.communication_server.send_to_all(bullet.get_state_update_message())
 
     def on_collision(self, arbiter, space, data):
-        # print(f"collision ({arbiter.shapes[0].type}, {arbiter.shapes[0].object_id}) ({arbiter.shapes[1].type}, {arbiter.shapes[1].object_id})")
-
         for colliderA, colliderB in permutations(arbiter.shapes):
             if colliderA.type == ServerBullet:
                 bulletA = self.bullets[colliderA.object_id]
@@ -92,7 +90,6 @@ class GameServer(ThreadOwner):
                 elif colliderB.type == ServerPlayer and colliderB.object_id != bulletA.shooter_id:
                     self.players[colliderB.object_id].health -= bulletA.damage
                     self.destroy_bullet(bulletA.id)
-                    print(f"hit player {colliderB.object_id}")
                     return True
 
         return True

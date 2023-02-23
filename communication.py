@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from dataclasses import dataclass, field
 from time import time, sleep
-import copy
+from objectid import ObjectId, get_new_object_id
 
 MESSAGE_START = b"v!P2"
 RELIABLE_MESSAGE_INITIAL_SEND_COUNT = 2
@@ -66,11 +66,11 @@ class ConstSizeQueue:
 @dataclass
 class ReliableMessage:
     payload: ...
-    id: int = field(init=False)
+    id: ObjectId = field(init=False)
 
 
     def __post_init__(self):
-        self.id = getrandbits(32)
+        self.id = get_new_object_id()
 
 @dataclass
 class MessageConfirmation:
@@ -88,7 +88,7 @@ class UnconfirmedMessage:
 class UncofirmedMessageStorage:
 
     def __init__(self):
-        self.unconfirmed_messages: dict[int, UnconfirmedMessage] = {}
+        self.unconfirmed_messages: dict[ObjectId, UnconfirmedMessage] = {}
         self.lock = threading.Lock()
 
     def recieve_confirmation(self, confirmation: MessageConfirmation):
@@ -236,7 +236,7 @@ class CommunicationServer(CommunicationEndpoint):
 class CommunicationClient(ABC, object):
 
     def __init__(self):
-        self.id = messages.get_new_object_id()
+        self.id = get_new_object_id()
 
     @abstractmethod
     def send(self, message):

@@ -1,12 +1,7 @@
 from dataclasses import dataclass
 from abc import ABC
 from pymunk import Vec2d
-from typing import NewType
-from random import randbytes
-
-ObjectId = NewType("ObjectId", int)
-def get_new_object_id():
-    return ObjectId(int.from_bytes(randbytes(4), "big"))
+from objectid import ObjectId
 
 class MessageToServer(ABC):
     pass

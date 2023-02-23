@@ -3,6 +3,7 @@ from pymunk import Vec2d
 import messages
 from .camera import Camera
 import pygame
+from objectid import ObjectId, get_new_object_id
 
 MAX_RADIUS = 0.3
 SPAWN_OFFSET = 0.5 # offset from the center of player
@@ -13,7 +14,7 @@ MAX_DAMAGE = 1
 class ServerBullet:
 
     def __init__(self, shoot_message: messages.ShootMessage, shooter_id: messages.ObjectId, physics_world: pymunk.Space):
-        self.id = messages.get_new_object_id()
+        self.id = get_new_object_id()
         self.shooter_id = shooter_id
         self.radius = shoot_message.relative_size * MAX_RADIUS
         self.damage = shoot_message.relative_size**2 * MAX_DAMAGE

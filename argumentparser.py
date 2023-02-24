@@ -1,18 +1,13 @@
 import argparse
-from dataclasses import dataclass
-from typing import Optional
-
-@dataclass
-class ParsedArguments:
-    is_host: bool
-    local_ip: str
-    remote_server_ip: Optional[str]
+from gameparameters import GameParameters
 
 def get_arguments():
     parser = argparse.ArgumentParser(
-        description = "A simple multiplayer shooting game. With no arguments, a host will be started on localhost.")
+        description = "A simple multiplayer shooting game. If any arguments are specified, you will go straight into lobby.")
     parser.add_argument("client_type", choices=["host", "guest"],
         help="host = start a server, guest = join a server")
+    parser.add_argument("name",
+        help="Your name")
     parser.add_argument("-s", "--server_ip", default=None,
         help="Ip address of the server (only specify for guest).")
     parser.add_argument("-l", "--local_ip", default=None,
@@ -31,10 +26,11 @@ def get_arguments():
     elif (not is_host) and arguments.server_ip == None:
         raise Exception("Expected a server_ip.")
     
-    arguments = ParsedArguments(
+    arguments = GameParameters(
         is_host = is_host,
         local_ip = arguments.local_ip,
-        remote_server_ip = arguments.server_ip
+        remote_server_ip = arguments.server_ip,
+        player_name = arguments.name
     )
 
     return arguments

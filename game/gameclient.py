@@ -6,14 +6,14 @@ from time import time
 from .camera import Camera
 from .background import Background
 from .floor import ClientFloor
-from pymunk import Vec2d
+import scene
 
-MAX_FPS = 60
 RELOAD_TIME = 1 # in seconds
 
-class GameClient:
+class GameClient(scene.Scene):
 
-    def __init__(self, communication_client: CommunicationClient):
+    def __init__(self, communication_client: CommunicationClient, window: pygame.Surface):
+        super().__init__(window, max_fps=60)
         self.communication_client = communication_client
 
         self.players = {
@@ -23,32 +23,25 @@ class GameClient:
         self.time_of_last_shoot = time()
 
         pygame.init()
-        self.window = pygame.display.set_mode((640, 480), pygame.RESIZABLE)
+        self.window = window
         self.background = Background()
         self.floor = ClientFloor()
         self.camera = Camera(self.window)
 
-    def mainloop(self):
-        self.should_run = True
-        clock = pygame.time.Clock()
-
-        while self.should_run:
-            clock.tick(MAX_FPS)
-            self.handle_input()
-            self.handle_messages()
-            self.update_camera()
-            self.send_post_frame_messages()
-            self.render()
-
-    def handle_input(self):
+    def handle_events(self, events: list[pygame.event.Event]):
         self.get_own_avatar().mouse_position_world_space = self.camera.get_world_position(pygame.mouse.get_pos())
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                self.should_run = False
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                self.scene_to_switch_to = scene.SCENE_STARTMENU
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.get_own_avatar().health > 0:
                     self.shoot()
+
+    def update(self):
+        self.handle_messages()
+        self.update_camera()
+        self.send_post_frame_messages()
 
     def handle_messages(self):
         for message in self.communication_client.poll_messages():

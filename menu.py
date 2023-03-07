@@ -1,9 +1,8 @@
 import pygame
 from pygame import Rect
 import pygame_gui
-import ipfinder
 import scene
-from gameparameters import GameParameters
+import gameparameters
 from typing import Optional
 from communication import CommunicationClient, CommunicationServer
 import messages
@@ -18,7 +17,7 @@ GUI_THEME_PATH = "assets/default-theme.json"
 
 def get_default_local_ip():
     try:
-        return ipfinder.get_local_ip()
+        return gameparameters.get_local_ip()
     except Exception as exception:
         print(exception)
         return ""
@@ -28,7 +27,7 @@ class StartMenu(scene.Scene):
     def __init__(self, window: pygame.Surface):
         super().__init__(window, max_fps=50)
         self.gui_manager = pygame_gui.UIManager(self.window.get_size(), GUI_THEME_PATH)
-        self.game_parameters: Optional[GameParameters] = None
+        self.game_parameters: Optional[gameparameters.GameParameters] = None
 
         self.local_ip_label = pygame_gui.elements.UILabel(
             text="Local ip (ipv4)",
@@ -119,7 +118,7 @@ class StartMenu(scene.Scene):
         self.final_join_game_button.visible = visibility
 
     def update_game_parameters(self, is_host: bool):
-        self.game_parameters = GameParameters(
+        self.game_parameters = gameparameters.GameParameters(
             is_host=is_host,
             local_ip=self.local_ip_entry.get_text(),
             remote_server_ip=self.remote_server_ip_entry.get_text(),
@@ -128,7 +127,7 @@ class StartMenu(scene.Scene):
 
 class LobbyClient(scene.Scene):
 
-    def __init__(self, communication_client: CommunicationClient, game_parameters: GameParameters, window: pygame.Surface):
+    def __init__(self, communication_client: CommunicationClient, game_parameters: gameparameters.GameParameters, window: pygame.Surface):
         self.communication_client = communication_client
         self.game_parameters = game_parameters
         super().__init__(window, max_fps=50)

@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from abc import ABC
 from pymunk import Vec2d
 from objectid import ObjectId
+from typing import Optional
 
 class MessageToServer(ABC):
     pass
@@ -13,6 +14,8 @@ class MessageToClient(ABC):
 class MessageToServerWithId:
     sender_id: ObjectId
     payload: MessageToServer
+
+# actual messages:
 
 @dataclass
 class MousePositionUpdate(MessageToServer):
@@ -40,3 +43,16 @@ class BulletStateUpdate(MessageToClient):
 @dataclass
 class BulletDestroyMessage(MessageToClient):
     bullet_id: ObjectId
+
+@dataclass
+class EnterLobbyMessage(MessageToServer):
+    player_name: str
+
+@dataclass
+class GameStartRequest(MessageToServer):
+    pass
+
+@dataclass
+class LobbyStateUpdate(MessageToClient):
+    connected_player_names: list[str]
+    time_to_game_start: Optional[float]

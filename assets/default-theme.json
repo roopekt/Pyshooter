@@ -1,0 +1,32 @@
+{
+    "#shape_style":
+    {
+       "misc":
+       {
+          "shape": "rounded_rectangle",
+          "shape_corner_radius": "5",
+          "border_width": "2",
+          "shadow_width": "1"
+       }
+    },
+    "button": {
+        "prototype": "#shape_style",
+        "misc": {
+            "tool_tip_delay": "0.5"
+        }
+    },
+    "text_entry_line": {
+        "prototype": "#shape_style"
+    },
+    "text_box": {
+        "prototype": "#shape_style"
+    },
+   "@centered":
+    {
+        "misc":
+        {
+            "text_horiz_alignment": "center",
+            "text_vert_aligment": "center"
+        }
+   }
+}

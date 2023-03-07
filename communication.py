@@ -283,7 +283,7 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
 class HostingCommunicationClient(CommunicationClient):
 
     def __init__(self, server: CommunicationServer):
-        super().__init__()
+        CommunicationClient.__init__(self)
         self.server = server
         self.message_storage = ReceivedMessageStorage()
 

@@ -61,6 +61,8 @@ class GameClient(scene.Scene):
             elif isinstance(message, messages.BulletDestroyMessage):
                 if message.bullet_id in self.bullets:
                     self.bullets.pop(message.bullet_id)
+            elif isinstance(message, messages.LobbyStateUpdate):
+                print(f"{type(message)} ignored by game client.")
             else:
                 raise Exception(f"Client cannot handle a {type(message)}.")
 

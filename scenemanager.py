@@ -34,6 +34,7 @@ class SceneManager:
         pygame.init()
         current_loop = scene_loops[initial_scene_type]
         while True:
+            print(f"Switching to scene {current_loop.__name__}.")
             next_loop_key = current_loop()
 
             if next_loop_key == scene.SCENE_QUIT:
@@ -52,17 +53,25 @@ class SceneManager:
         return start_menu.scene_to_switch_to
     
     def lobby_mainloop(self):
+        assert(self.game_parameters != None)
         self.start_communication()
-        lobby = menu.Lobby(self.window)
-        print("lobby")
-        lobby.mainloop()
-        return lobby.scene_to_switch_to
+        lobby_client = menu.LobbyClient(self.get_communication_client(), self.game_parameters, self.window)
+
+        lobby_server = None
+        if self.game_parameters.is_host:
+            assert(self.communication_server != None)
+            lobby_server = menu.LobbyServer(self.communication_server, start=True)
+
+        lobby_client.mainloop()
+
+        if lobby_server != None:
+            lobby_server.stop()
+        return lobby_client.scene_to_switch_to
     
     def game_mainloop(self):
         assert(self.game_parameters != None)
 
-        communication_client = self.hosting_communication_client if self.game_parameters.is_host else self.internet_communication_client
-        assert(communication_client != None)
+        communication_client = self.get_communication_client()
         game_client = GameClient(communication_client, self.window)
 
         game_server = None
@@ -105,3 +114,9 @@ class SceneManager:
 
         self.game_parameters = None
         self.communication_active = False
+
+    def get_communication_client(self):
+        assert(self.game_parameters != None)
+        communication_client = self.hosting_communication_client if self.game_parameters.is_host else self.internet_communication_client
+        assert(communication_client != None)
+        return communication_client

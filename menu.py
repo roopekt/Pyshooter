@@ -10,6 +10,8 @@ from thread_owner import ThreadOwner
 import threading
 import time
 import math
+import connectioncode
+import errors
 
 BACKGROUND_COLOR = pygame.Color("#0e0e0f")
 GAME_START_DELAY_SECONDS = 3
@@ -21,6 +23,21 @@ def get_default_local_ip():
     except Exception as exception:
         print(exception)
         return ""
+
+# UITextEntryBox that ignores all input
+class SelectableTextBox(pygame_gui.elements.UITextEntryBox):
+
+    def process_event(self, event: pygame.event.Event) -> bool:
+        is_copy_command = (event.type == pygame.KEYDOWN and
+            event.key == pygame.K_c and
+            (event.mod & pygame.KMOD_CTRL, event.mod & pygame.KMOD_META) != (0, 0)
+        )
+        other_allowed_keys = (pygame.K_HOME, pygame.K_END, pygame.K_RIGHT, pygame.K_UP, pygame.K_LEFT, pygame.K_DOWN)
+
+        if event.type == pygame.KEYDOWN and not is_copy_command and not event.key in other_allowed_keys:
+            return False
+        else:
+            return super().process_event(event)
 
 class StartMenu(scene.Scene):
 
@@ -67,22 +84,22 @@ class StartMenu(scene.Scene):
             manager=self.gui_manager
         )
 
-        self.remote_server_ip_label = pygame_gui.elements.UILabel(
-            text="Remote server ip (ipv4)",
+        self.connection_code_label = pygame_gui.elements.UILabel(
+            text="Connection code",
             relative_rect=Rect(0, 50, 250, 20),
             anchors={"centerx": "centerx", "top_target": self.join_game_button},
             manager=self.gui_manager
         )
-        self.remote_server_ip_entry = pygame_gui.elements.UITextEntryLine(
+        self.connection_code_entry = pygame_gui.elements.UITextEntryLine(
             placeholder_text="pleace specify",
             relative_rect=Rect(0, 0, 250, -1),
-            anchors={"centerx": "centerx", "top_target": self.remote_server_ip_label},
+            anchors={"centerx": "centerx", "top_target": self.connection_code_label},
             manager=self.gui_manager
         )
         self.final_join_game_button = pygame_gui.elements.UIButton(
             text="Join",
             relative_rect=Rect(0, 10, 90, 30),
-            anchors={"centerx": "centerx", "top_target": self.remote_server_ip_entry},
+            anchors={"centerx": "centerx", "top_target": self.connection_code_entry},
             manager=self.gui_manager
         )
         self.set_join_panel_visibility(False)
@@ -91,15 +108,11 @@ class StartMenu(scene.Scene):
         for event in events:
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == self.host_game_button:
-                    self.update_game_parameters(is_host=True)
-                    self.scene_to_switch_to = scene.SCENE_LOBBY
+                    self.try_enter_lobby(is_host=True)
                 elif event.ui_element == self.join_game_button:
                     self.set_join_panel_visibility(True)
                 elif event.ui_element == self.final_join_game_button:
-                    self.update_game_parameters(is_host=False)
-                    self.scene_to_switch_to = scene.SCENE_LOBBY
-                else:
-                    raise Exception(f"Unknown button was pressed: {event.ui_element}")
+                    self.try_enter_lobby(is_host=False)
 
             self.gui_manager.process_events(event)
 
@@ -113,18 +126,37 @@ class StartMenu(scene.Scene):
 
     def set_join_panel_visibility(self, visible: bool):
         visibility = 1 if visible else 0
-        self.remote_server_ip_label.visible = visibility
-        self.remote_server_ip_entry.visible = visibility
+        self.connection_code_label.visible = visibility
+        self.connection_code_entry.visible = visibility
         self.final_join_game_button.visible = visibility
 
-    def update_game_parameters(self, is_host: bool):
+    def try_enter_lobby(self, is_host: bool):
+        remote_ip = None
+        if not is_host:
+            connection_code = self.connection_code_entry.get_text()
+            try:
+                remote_ip = connectioncode.decode_connection_code(connection_code)
+            except Exception as exception:
+                error_window = pygame_gui.windows.UIMessageWindow(
+                    window_title="Invalid connection code",
+                    html_message=str(exception),
+                    rect=Rect(50, 50, 300, 200),
+                    manager=self.gui_manager
+                )
+
+                errors.log_nonfatal(exception)
+                return
+            else:
+                print(f"Entering lobby {connection_code}, {remote_ip}")
+
         self.game_parameters = gameparameters.GameParameters(
             is_host=is_host,
             local_ip=self.local_ip_entry.get_text(),
-            remote_server_ip=self.remote_server_ip_entry.get_text(),
+            remote_server_ip=remote_ip,
             player_name=self.name_entry.get_text()
         )
 
+        self.scene_to_switch_to = scene.SCENE_LOBBY
 class LobbyClient(scene.Scene):
 
     def __init__(self, communication_client: CommunicationClient, game_parameters: gameparameters.GameParameters, window: pygame.Surface):
@@ -132,12 +164,32 @@ class LobbyClient(scene.Scene):
         self.game_parameters = game_parameters
         super().__init__(window, max_fps=50)
         self.gui_manager = pygame_gui.UIManager(self.window.get_size(), GUI_THEME_PATH)
+        self.connection_code = connectioncode.encode_ip_address(game_parameters.get_server_ip())
         self.join_lobby_server()
 
-        self.player_list_gui = pygame_gui.elements.UITextBox(
-            html_text="loading...",
-            relative_rect=Rect(0, 20, 250, 250),
+        self.connection_code_label = pygame_gui.elements.UILabel(
+            text="Connection code",
+            relative_rect=Rect(0, 20, 250, 30),
             anchors={"centerx": "centerx", "top": "top"},
+            manager=self.gui_manager
+        )
+        self.connection_code_textbox = SelectableTextBox(
+            initial_text=self.connection_code,
+            relative_rect=Rect(0, 0, 250, 40),
+            anchors={"centerx": "centerx", "top_target": self.connection_code_label},
+            object_id=pygame_gui.core.ObjectID(class_id="@centered", object_id="#connection-code-textbox"),
+            manager=self.gui_manager
+        )
+        self.player_list_label = pygame_gui.elements.UILabel(
+            text="Connected players",
+            relative_rect=Rect(0, 20, 250, 30),
+            anchors={"centerx": "centerx", "top_target": self.connection_code_textbox},
+            manager=self.gui_manager
+        )
+        self.player_list_textbox = pygame_gui.elements.UITextBox(
+            html_text="loading...",
+            relative_rect=Rect(0, 0, 250, 250),
+            anchors={"centerx": "centerx", "top_target": self.player_list_label},
             object_id=pygame_gui.core.ObjectID(class_id="@centered", object_id="#player-list"),
             manager=self.gui_manager
         )
@@ -145,13 +197,13 @@ class LobbyClient(scene.Scene):
             text="Start Game",
             tool_tip_text=f"Start the game after {GAME_START_DELAY_SECONDS} seconds.",
             relative_rect=Rect(0, 20, 200, 30),
-            anchors={"centerx": "centerx", "top_target": self.player_list_gui},
+            anchors={"centerx": "centerx", "top_target": self.player_list_textbox},
             manager=self.gui_manager
         )
         self.game_start_timer = pygame_gui.elements.UILabel(
             text="?",
             relative_rect=Rect(0, 20, 100, 30),
-            anchors={"centerx": "centerx", "top_target": self.player_list_gui},
+            anchors={"centerx": "centerx", "top_target": self.player_list_textbox},
             object_id=pygame_gui.core.ObjectID(class_id="@centered", object_id="#game-start-timer"),
             visible=0,
             manager=self.gui_manager
@@ -162,8 +214,6 @@ class LobbyClient(scene.Scene):
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == self.start_game_button:
                     self.communication_client.send_reliable(messages.GameStartRequest())
-                else:
-                    raise Exception(f"Unknown button was pressed: {event.ui_element}")
 
             self.gui_manager.process_events(event)
 
@@ -189,11 +239,7 @@ class LobbyClient(scene.Scene):
                 print(f"Unexpected message ({type(message)}) received by lobby. Entering game.")
 
     def update_connected_players(self, message: messages.LobbyStateUpdate):
-        self.player_list_gui.set_text(
-            '<font face="verdana" color="#FFFFFF" size=1>' +
-            '\n'.join(message.connected_player_names) +
-            '</font>'
-        )
+        self.player_list_textbox.set_text('\n'.join(message.connected_player_names))
 
     def update_game_start_timer(self, message: messages.LobbyStateUpdate):
         if message.time_to_game_start != None:

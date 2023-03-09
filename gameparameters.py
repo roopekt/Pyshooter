@@ -27,6 +27,11 @@ class GameParameters:
         assert self.player_name != None and self.player_name != "", "no name"
         assert len(self.player_name) <= 20, "too long name"
 
+    def get_server_ip(self):
+        server_ip = self.local_ip if self.is_host else self.remote_server_ip
+        assert server_ip != None
+        return server_ip
+
 def get_local_ip():
     ip_list = socket.gethostbyname_ex('')[2]
 

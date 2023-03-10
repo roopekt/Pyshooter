@@ -113,6 +113,8 @@ class StartMenu(scene.Scene):
                     self.set_join_panel_visibility(True)
                 elif event.ui_element == self.final_join_game_button:
                     self.try_enter_lobby(is_host=False)
+            elif event.type == pygame.VIDEORESIZE:
+                self.gui_manager.set_window_resolution(self.window.get_size())
 
             self.gui_manager.process_events(event)
 
@@ -214,6 +216,8 @@ class LobbyClient(scene.Scene):
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == self.start_game_button:
                     self.communication_client.send_reliable(messages.GameStartRequest())
+            elif event.type == pygame.VIDEORESIZE:
+                self.gui_manager.set_window_resolution(self.window.get_size())
 
             self.gui_manager.process_events(event)
 

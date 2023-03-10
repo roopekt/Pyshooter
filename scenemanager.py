@@ -7,6 +7,7 @@ import scene
 from gameparameters import GameParameters
 import menu
 from game.gameclient import GameClient
+import connectioncode
 
 class SceneManager:
 
@@ -54,6 +55,8 @@ class SceneManager:
     
     def lobby_mainloop(self):
         assert(self.game_parameters != None)
+        print(f"Starting lobby on {self.get_connection_code()} = {self.get_server_ip()}")
+
         self.start_communication()
         lobby_client = menu.LobbyClient(self.get_communication_client(), self.game_parameters, self.window)
 
@@ -70,6 +73,7 @@ class SceneManager:
     
     def game_mainloop(self):
         assert(self.game_parameters != None)
+        print(f"Starting game on {self.get_connection_code()} = {self.get_server_ip()}")
 
         communication_client = self.get_communication_client()
         game_client = GameClient(communication_client, self.window)
@@ -120,3 +124,13 @@ class SceneManager:
         communication_client = self.hosting_communication_client if self.game_parameters.is_host else self.internet_communication_client
         assert(communication_client != None)
         return communication_client
+    
+    def get_server_ip(self):
+        assert(self.game_parameters != None)
+        server_ip = self.game_parameters.local_ip if self.game_parameters.is_host else self.game_parameters.remote_server_ip
+        assert server_ip != None
+        return server_ip
+    
+    def get_connection_code(self):
+        server_ip = self.get_server_ip()
+        return connectioncode.encode_ip_address(server_ip)

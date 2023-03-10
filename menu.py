@@ -148,8 +148,6 @@ class StartMenu(scene.Scene):
 
                 errors.log_nonfatal(exception)
                 return
-            else:
-                print(f"Entering lobby {connection_code}, {remote_ip}")
 
         self.game_parameters = gameparameters.GameParameters(
             is_host=is_host,

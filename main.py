@@ -1,14 +1,10 @@
 import argumentparser
 from sys import argv
-import gameparameters
 from random import randint
 
 arguments = None
 if len(argv) > 1:
     arguments = argumentparser.get_arguments()
-
-    if arguments.local_ip == None:
-        arguments.local_ip = gameparameters.get_local_ip()
 
 import pygame
 import scenemanager

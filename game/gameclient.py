@@ -5,8 +5,8 @@ from . import player, bullet
 from time import time
 from .camera import Camera
 from .background import Background
-from .floor import ClientFloor
 import scene
+from .arena import ClientArena
 
 RELOAD_TIME = 1 # in seconds
 
@@ -21,11 +21,11 @@ class GameClient(scene.Scene):
         }
         self.bullets: dict[messages.ObjectId, bullet.ClientBullet] = {}
         self.time_of_last_shoot = time()
+        self.arena = ClientArena()
 
         pygame.init()
         self.window = window
         self.background = Background()
-        self.floor = ClientFloor()
         self.camera = Camera(self.window)
 
     def handle_events(self, events: list[pygame.event.Event]):
@@ -61,6 +61,8 @@ class GameClient(scene.Scene):
             elif isinstance(message, messages.BulletDestroyMessage):
                 if message.bullet_id in self.bullets:
                     self.bullets.pop(message.bullet_id)
+            elif isinstance(message, messages.ArenaUpdate):
+                self.arena.handle_arena_update(message)
             elif isinstance(message, messages.LobbyStateUpdate):
                 print(f"{type(message)} ignored by game client.")
             else:
@@ -74,12 +76,12 @@ class GameClient(scene.Scene):
 
     def render(self):
         self.background.render(self.camera)
-        self.floor.render(self.camera)
 
         for _player in self.players.values():
             _player.render(self.camera)
         for _bullet in self.bullets.values():
             _bullet.render(self.camera)
+        self.arena.render(self.camera)
 
         pygame.display.flip()
 

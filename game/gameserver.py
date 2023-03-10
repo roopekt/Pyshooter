@@ -7,8 +7,8 @@ from communication import CommunicationServer
 import messages
 from .player import ServerPlayer
 from .bullet import ServerBullet
-from .floor import ServerFloor
 from itertools import permutations
+from . import arena
 
 MAX_TPS = 50
 
@@ -20,12 +20,12 @@ class GameServer(ThreadOwner):
         self.physics_world.add_default_collision_handler().pre_solve = self.on_collision
 
         self.communication_server = communication_server
+        self.arena = arena.ServerArena(self.physics_world)
         self.players: dict[messages.ObjectId, ServerPlayer] = {}
         self.bullets: dict[messages.ObjectId, ServerBullet] = {}
-        self.floor = ServerFloor(self.physics_world)
 
         ThreadOwner.__init__(self, start_immediately=start)
-        self.add_thread(Thread(target=self.mainloop), "GameServer")
+        self.add_thread(Thread(target=self.mainloop), "game-server")
 
     def mainloop(self):
         clock = pygame.time.Clock()
@@ -77,6 +77,10 @@ class GameServer(ThreadOwner):
             self.communication_server.send_to_all(player.get_position_update_message())
         for bullet in self.bullets.values():
             self.communication_server.send_to_all(bullet.get_state_update_message())
+        
+        arena_update = self.arena.try_get_arena_update_message()
+        if arena_update != None:
+            self.communication_server.send_to_all_reliable(arena_update)
 
     def on_collision(self, arbiter, space, data):
         for colliderA, colliderB in permutations(arbiter.shapes):

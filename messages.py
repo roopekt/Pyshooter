@@ -56,3 +56,13 @@ class GameStartRequest(MessageToServer):
 class LobbyStateUpdate(MessageToClient):
     connected_player_names: list[str]
     time_to_game_start: Optional[float]
+
+@dataclass
+class WallUpdate:
+    position: Vec2d
+    dimensions: Vec2d
+    health: float
+    max_health: float
+@dataclass
+class ArenaUpdate(MessageToClient):
+    wall_updates: dict[ObjectId, WallUpdate]

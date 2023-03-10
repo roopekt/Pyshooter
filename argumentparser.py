@@ -1,5 +1,5 @@
 import argparse
-from gameparameters import GameParameters
+from gameparameters import GameParameters, get_local_ip
 
 def get_arguments():
     parser = argparse.ArgumentParser(
@@ -25,6 +25,9 @@ def get_arguments():
         raise Exception("Please don't specify server_ip for host.")
     elif (not is_host) and arguments.server_ip == None:
         raise Exception("Expected a server_ip.")
+    
+    if arguments.local_ip == None:
+        arguments.local_ip = get_local_ip()
     
     arguments = GameParameters(
         is_host = is_host,

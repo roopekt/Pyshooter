@@ -34,3 +34,6 @@ def multiply_compwise(a, b):
 
 def divide_compwise(a, b):
     return pymunk.Vec2d(a.x / b.x, a.y / b.y)
+
+def lerpf(a: float, b: float, t: float):
+    return a + (b - a) * t

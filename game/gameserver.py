@@ -9,6 +9,7 @@ from .player import ServerPlayer
 from .bullet import ServerBullet
 from itertools import permutations
 from . import arena
+from objectid import ObjectId
 
 MAX_TPS = 50
 
@@ -44,7 +45,7 @@ class GameServer(ThreadOwner):
             sender_id = message_with_id.sender_id
 
             if sender_id not in self.players:
-                self.players[sender_id] = ServerPlayer(sender_id, self.physics_world)
+                self.add_player(sender_id)
 
             if isinstance(message, messages.MousePositionUpdate):
                 self.players[sender_id].mouse_position_world_space = message.mouse_position_world_space
@@ -54,6 +55,12 @@ class GameServer(ThreadOwner):
                 self.players[sender_id].apply_recoil(message)
             else:
                 raise Exception(f"Server cannot handle a {type(message)}.")
+            
+    def add_player(self, player_id: ObjectId):
+        self.players[player_id] = ServerPlayer(player_id, self.physics_world)
+
+        # send the arena
+        self.communication_server.send_reliable_to(self.arena.try_get_arena_update_message(update_dirty_only=False), player_id)
 
     def update_bullets(self, delta_time: float):
         bullet_ids_to_destroy = []

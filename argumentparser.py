@@ -3,7 +3,7 @@ from gameparameters import GameParameters, get_local_ip
 
 def get_arguments():
     parser = argparse.ArgumentParser(
-        description = "A simple multiplayer shooting game. If any arguments are specified, you will go straight into lobby.")
+        description = "A simple multiplayer shooting game. If any arguments are specified, you will go straight into the game.")
     parser.add_argument("client_type", choices=["host", "guest"],
         help="host = start a server, guest = join a server")
     parser.add_argument("name",

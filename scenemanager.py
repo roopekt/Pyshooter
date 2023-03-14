@@ -30,7 +30,7 @@ class SceneManager:
         }
 
         self.game_parameters = start_with_parameters
-        initial_scene_type = scene.SCENE_STARTMENU if start_with_parameters == None else scene.SCENE_LOBBY
+        initial_scene_type = scene.SCENE_STARTMENU if start_with_parameters == None else scene.SCENE_GAME
 
         pygame.init()
         current_loop = scene_loops[initial_scene_type]
@@ -73,6 +73,7 @@ class SceneManager:
     
     def game_mainloop(self):
         assert(self.game_parameters != None)
+        self.start_communication()
         print(f"Starting game on {self.get_connection_code()} = {self.get_server_ip()}")
 
         communication_client = self.get_communication_client()

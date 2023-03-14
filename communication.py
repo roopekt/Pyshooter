@@ -167,7 +167,7 @@ class CommunicationServer(CommunicationEndpoint):
 
     def __init__(self, address, start = False):
         self.hosting_client: Optional[HostingCommunicationClient] = None
-        self.connected_players: dict[messages.ObjectId, ServerSidePlayerHandle] = {}
+        self.connected_players: dict[ObjectId, ServerSidePlayerHandle] = {}
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         message_socket.bind(address)
@@ -224,6 +224,22 @@ class CommunicationServer(CommunicationEndpoint):
 
         if self.hosting_client != None:
             self.hosting_client.handle_message(message)
+
+    def send_to(self, message, player_id: ObjectId):
+        if self.hosting_client != None and self.hosting_client.id == player_id:
+            self.hosting_client.handle_message(message)
+            return
+        
+        client = self.connected_players[player_id]
+        self.socket.send_to(message, client.address)
+
+    def send_reliable_to(self, message, player_id: ObjectId):
+        if self.hosting_client != None and self.hosting_client.id == player_id:
+            self.hosting_client.handle_message(message)
+            return
+        
+        client = self.connected_players[player_id]
+        self.socket.send_to_reliable(message, client.address, self.unconfirmed_message_storage)
 
 class CommunicationClient(ABC):
 

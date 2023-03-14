@@ -94,10 +94,10 @@ class ServerArena:
         for _ in range(WALL_COUNT):
             self.walls.append(self.get_random_wall(physics_world))
 
-    def try_get_arena_update_message(self):
-        dirty_walls = self.get_dirty_walls()
-        if len(dirty_walls) > 0:
-            wall_updates = {wall.id: wall.get_wall_update() for wall in dirty_walls}
+    def try_get_arena_update_message(self, update_dirty_only: bool = True):
+        walls_to_update = self.get_dirty_walls() if update_dirty_only else self.walls
+        if len(walls_to_update) > 0:
+            wall_updates = {wall.id: wall.get_wall_update() for wall in walls_to_update}
             return messages.ArenaUpdate(wall_updates)
         else:
             return None

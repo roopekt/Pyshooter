@@ -120,7 +120,7 @@ class HighLevelSocket:
 
     # returns (data, sender's address)
     def receive_message(self):
-        data, address = self.socket.recvfrom(4096)
+        data, address = self.socket.recvfrom(16_384)
         message = pickle.loads(data)
         return message, address
 

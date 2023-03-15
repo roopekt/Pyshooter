@@ -37,3 +37,6 @@ def divide_compwise(a, b):
 
 def lerpf(a: float, b: float, t: float):
     return a + (b - a) * t
+
+def clampf(x, _min, _max):
+    return max(_min, min(_max, x))

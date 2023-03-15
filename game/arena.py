@@ -6,16 +6,7 @@ import mymath
 import random
 import objectid
 import messages
-
-ARENA_RADIUS = 20
-WALL_WIDTH = .8
-WALL_MIN_LENGTH = 2
-WALL_MAX_LENGTH = 10
-WALL_COUNT = 40
-WALL_HEALTH_DENSITY = 2
-
-WALL_ALIVE_COLOR = pygame.Color("black")
-WALL_ALMOST_DEAD_COLOR = pygame.Color("#00000080")
+from .arenaprops import *
 
 class ServerWall:
 

@@ -69,7 +69,10 @@ class GameClient(scene.Scene):
                 raise Exception(f"Client cannot handle a {type(message)}.")
 
     def update_camera(self):
-        self.camera.position = self.get_own_avatar().position
+        own_avatar = self.get_own_avatar()
+        other_players = dict(self.players)
+        other_players.pop(self.communication_client.id)
+        self.camera.update(own_avatar.position, [p.position for p in other_players.values()])
 
     def send_post_frame_messages(self):
         self.communication_client.send(messages.MousePositionUpdate(self.get_own_avatar().mouse_position_world_space))

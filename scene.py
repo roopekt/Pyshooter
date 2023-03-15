@@ -5,6 +5,7 @@ import datetime
 import random
 import pathlib
 from os import makedirs
+from fpscalculator import FPSCalculator
 
 SceneType = NewType("SceneType", str)
 SCENE_QUIT = SceneType("quit")
@@ -19,11 +20,12 @@ class Scene(ABC):
         self.max_fps = max_fps
         self.delta_time = 1 / max_fps
         self.scene_to_switch_to: Optional[SceneType] = None
+        self.FPS_calculator = FPSCalculator()
 
     def mainloop(self):
         clock = pygame.time.Clock()
         while self.scene_to_switch_to == None:
-            self.delta_time = clock.tick(round(self.max_fps))
+            self.delta_time = clock.tick(round(self.max_fps)) / 1000
 
             events = pygame.event.get()
             for event in events:
@@ -35,6 +37,8 @@ class Scene(ABC):
             self.handle_events(events)
             self.update()
             self.render()
+            fps = self.FPS_calculator.get_FPS_str(self.delta_time)
+            pygame.display.set_caption(f"Pyshooter {fps} FPS")
                     
     @abstractmethod
     def handle_events(self, events: list[pygame.event.Event]):

@@ -74,10 +74,14 @@ class GameServer(ThreadOwner):
             self.destroy_bullet(bullet_id)
 
     def destroy_bullet(self, bullet_id: messages.ObjectId):
+        if bullet_id not in self.bullets:
+            return False
+
         bullet = self.bullets[bullet_id]
         self.physics_world.remove(bullet.physics_body, bullet.collider)
         self.bullets.pop(bullet_id)
         self.communication_server.send_to_all_reliable(messages.BulletDestroyMessage(bullet_id))
+        return True
 
     def send_post_frame_messages(self):
         for player in self.players.values():
@@ -92,6 +96,8 @@ class GameServer(ThreadOwner):
     def on_collision(self, arbiter: pymunk.Arbiter, space: pymunk.Space, data):
         for colliderA, colliderB in permutations(arbiter.shapes):
             if colliderA.type == ServerBullet:
+                if colliderA.object_id not in self.bullets:
+                    return True
                 bulletA = self.bullets[colliderA.object_id]
 
                 if colliderB.type == ServerBullet:
@@ -103,6 +109,9 @@ class GameServer(ThreadOwner):
                     self.destroy_bullet(bulletA.id)
                     return True
                 elif colliderB.type == arena.ServerWall:
+                    if colliderB.object_id not in self.arena.walls:
+                        return True
+                    
                     wall = self.arena.walls[colliderB.object_id]
                     wall.take_damage(bulletA.damage)
 

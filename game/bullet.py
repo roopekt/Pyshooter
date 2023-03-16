@@ -8,7 +8,7 @@ from objectid import ObjectId, get_new_object_id
 MAX_RADIUS = 0.3
 SPAWN_OFFSET = 0.5 # offset from the center of player
 SPEED = 20
-MAX_TRAVEL_DISTANCE = 80
+MAX_TRAVEL_DISTANCE = 200
 MAX_DAMAGE = 1
 
 class ServerBullet:

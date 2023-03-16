@@ -89,7 +89,7 @@ class GameServer(ThreadOwner):
         if arena_update != None:
             self.communication_server.send_to_all_reliable(arena_update)
 
-    def on_collision(self, arbiter, space, data):
+    def on_collision(self, arbiter: pymunk.Arbiter, space: pymunk.Space, data):
         for colliderA, colliderB in permutations(arbiter.shapes):
             if colliderA.type == ServerBullet:
                 bulletA = self.bullets[colliderA.object_id]
@@ -100,6 +100,12 @@ class GameServer(ThreadOwner):
                     return True
                 elif colliderB.type == ServerPlayer and colliderB.object_id != bulletA.shooter_id:
                     self.players[colliderB.object_id].health -= bulletA.damage
+                    self.destroy_bullet(bulletA.id)
+                    return True
+                elif colliderB.type == arena.ServerWall:
+                    wall = self.arena.walls[colliderB.object_id]
+                    wall.take_damage(bulletA.damage)
+
                     self.destroy_bullet(bulletA.id)
                     return True
 

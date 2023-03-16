@@ -30,7 +30,7 @@ class ServerPlayer:
         self.physics_body.position = spawn_position
         print(f"{self.physics_body.position = }")
         self.collider = pymunk.Circle(self.physics_body, radius=RADIUS)
-        self.collider.elasticity = 0.8
+        self.collider.elasticity = 0.2
         self.collider.friction = 0.5
         self.collider.type = ServerPlayer
         self.collider.object_id = self.id

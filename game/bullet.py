@@ -56,7 +56,7 @@ class ClientBullet:
 
     def render(self, camera: Camera):
         pygame.draw.circle(
-            camera.window,
+            camera.window_container.window,
             pygame.Color("black"),
             camera.get_screen_position(self.position),
             self.radius * camera.get_graphical_scale_factor()

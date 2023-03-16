@@ -12,6 +12,7 @@ import time
 import math
 import connectioncode
 import errors
+from windowcontainer import WindowContainer
 
 BACKGROUND_COLOR = pygame.Color("#0e0e0f")
 GAME_START_DELAY_SECONDS = 3
@@ -41,9 +42,9 @@ class SelectableTextBox(pygame_gui.elements.UITextEntryBox):
 
 class StartMenu(scene.Scene):
 
-    def __init__(self, window: pygame.Surface):
-        super().__init__(window, max_fps=50)
-        self.gui_manager = pygame_gui.UIManager(self.window.get_size(), GUI_THEME_PATH)
+    def __init__(self, window_container: WindowContainer):
+        super().__init__(window_container, max_fps=50)
+        self.gui_manager = pygame_gui.UIManager(self.window_container.window.get_size(), GUI_THEME_PATH)
         self.game_parameters: Optional[gameparameters.GameParameters] = None
 
         self.local_ip_label = pygame_gui.elements.UILabel(
@@ -114,7 +115,7 @@ class StartMenu(scene.Scene):
                 elif event.ui_element == self.final_join_game_button:
                     self.try_enter_lobby(is_host=False)
             elif event.type == pygame.VIDEORESIZE:
-                self.gui_manager.set_window_resolution(self.window.get_size())
+                self.gui_manager.set_window_resolution(self.window_container.window.get_size())
 
             self.gui_manager.process_events(event)
 
@@ -122,8 +123,8 @@ class StartMenu(scene.Scene):
         self.gui_manager.update(self.delta_time / 1000)
 
     def render(self):
-        self.window.fill(BACKGROUND_COLOR)
-        self.gui_manager.draw_ui(self.window)
+        self.window_container.window.fill(BACKGROUND_COLOR)
+        self.gui_manager.draw_ui(self.window_container.window)
         pygame.display.flip()
 
     def set_join_panel_visibility(self, visible: bool):
@@ -159,11 +160,11 @@ class StartMenu(scene.Scene):
         self.scene_to_switch_to = scene.SCENE_LOBBY
 class LobbyClient(scene.Scene):
 
-    def __init__(self, communication_client: CommunicationClient, game_parameters: gameparameters.GameParameters, window: pygame.Surface):
+    def __init__(self, communication_client: CommunicationClient, game_parameters: gameparameters.GameParameters, window_container: WindowContainer):
         self.communication_client = communication_client
         self.game_parameters = game_parameters
-        super().__init__(window, max_fps=50)
-        self.gui_manager = pygame_gui.UIManager(self.window.get_size(), GUI_THEME_PATH)
+        super().__init__(window_container, max_fps=50)
+        self.gui_manager = pygame_gui.UIManager(self.window_container.window.get_size(), GUI_THEME_PATH)
         self.connection_code = connectioncode.encode_ip_address(game_parameters.get_server_ip())
         self.join_lobby_server()
 
@@ -215,7 +216,7 @@ class LobbyClient(scene.Scene):
                 if event.ui_element == self.start_game_button:
                     self.communication_client.send_reliable(messages.GameStartRequest())
             elif event.type == pygame.VIDEORESIZE:
-                self.gui_manager.set_window_resolution(self.window.get_size())
+                self.gui_manager.set_window_resolution(self.window_container.window.get_size())
 
             self.gui_manager.process_events(event)
 
@@ -224,8 +225,8 @@ class LobbyClient(scene.Scene):
         self.handle_messages()
 
     def render(self):
-        self.window.fill(BACKGROUND_COLOR)
-        self.gui_manager.draw_ui(self.window)
+        self.window_container.window.fill(BACKGROUND_COLOR)
+        self.gui_manager.draw_ui(self.window_container.window)
         pygame.display.flip()
 
     def handle_messages(self):

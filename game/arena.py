@@ -73,7 +73,7 @@ class ClientWall:
         # pygame.draw.rect doesn't work with transparency...
         rect_surface = pygame.Surface(rect.size, pygame.SRCALPHA)
         rect_surface.fill(color)
-        camera.window.blit(rect_surface, rect)
+        camera.window_container.window.blit(rect_surface, rect)
 
     def handle_wall_update(self, wall_update: messages.WallUpdate):
         self.position = wall_update.position

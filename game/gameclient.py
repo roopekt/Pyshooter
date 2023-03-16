@@ -7,13 +7,14 @@ from .camera import Camera
 from .background import Background
 import scene
 from .arena import ClientArena
+from windowcontainer import WindowContainer
 
 RELOAD_TIME = 1 # in seconds
 
 class GameClient(scene.Scene):
 
-    def __init__(self, communication_client: CommunicationClient, window: pygame.Surface):
-        super().__init__(window, max_fps=60)
+    def __init__(self, communication_client: CommunicationClient, window_container: WindowContainer):
+        super().__init__(window_container, max_fps=60)
         self.communication_client = communication_client
 
         self.players = {
@@ -24,7 +25,7 @@ class GameClient(scene.Scene):
         self.arena = ClientArena()
 
         pygame.init()
-        self.window = window
+        self.window = window_container
         self.background = Background()
         self.camera = Camera(self.window)
 

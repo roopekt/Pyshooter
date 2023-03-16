@@ -8,11 +8,12 @@ from gameparameters import GameParameters
 import menu
 from game.gameclient import GameClient
 import connectioncode
+from windowcontainer import WindowContainer
 
 class SceneManager:
 
-    def __init__(self, window: pygame.Surface, server_port: int, client_port: int):
-        self.window = window
+    def __init__(self, window_container: WindowContainer, server_port: int, client_port: int):
+        self.window_container = window_container
         self.server_port = server_port
         self.client_port = client_port
 
@@ -48,7 +49,7 @@ class SceneManager:
 
     def startmenu_mainloop(self):
         self.close_communication()
-        start_menu = menu.StartMenu(self.window)
+        start_menu = menu.StartMenu(self.window_container)
         start_menu.mainloop()
         self.game_parameters = start_menu.game_parameters
         return start_menu.scene_to_switch_to
@@ -58,7 +59,7 @@ class SceneManager:
         print(f"Starting lobby on {self.get_connection_code()} = {self.get_server_ip()}")
 
         self.start_communication()
-        lobby_client = menu.LobbyClient(self.get_communication_client(), self.game_parameters, self.window)
+        lobby_client = menu.LobbyClient(self.get_communication_client(), self.game_parameters, self.window_container)
 
         lobby_server = None
         if self.game_parameters.is_host:
@@ -77,7 +78,7 @@ class SceneManager:
         print(f"Starting game on {self.get_connection_code()} = {self.get_server_ip()}")
 
         communication_client = self.get_communication_client()
-        game_client = GameClient(communication_client, self.window)
+        game_client = GameClient(communication_client, self.window_container)
 
         game_server = None
         if self.game_parameters.is_host:

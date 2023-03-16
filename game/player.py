@@ -72,7 +72,7 @@ class ClientPlayer:
             color = DEAD_COLOR
 
         pygame.draw.circle(
-            camera.window,
+            camera.window_container.window,
             color,
             camera.get_screen_position(self.position),
             RADIUS * graphic_scaler
@@ -81,7 +81,7 @@ class ClientPlayer:
         if self.health > 0:
             gun_pos = self.position + (self.mouse_position_world_space - self.position).scale_to_length(RADIUS)
             pygame.draw.circle(
-                camera.window,
+                camera.window_container.window,
                 pygame.Color(255, 255, 0),
                 camera.get_screen_position(gun_pos),
                 RADIUS * graphic_scaler / 3

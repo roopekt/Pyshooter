@@ -32,4 +32,4 @@ class Sprite:
         else:
             raise Exception(f"Unknown pivot: {self.pivot}")
 
-        camera.window.blit(self.scaled_texture, top_left_corner_position)
+        camera.window_container.window.blit(self.scaled_texture, top_left_corner_position)

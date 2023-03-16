@@ -219,7 +219,7 @@ class CommunicationServer(CommunicationEndpoint):
             self.hosting_client.handle_message(message)
 
     def send_to_all_reliable(self, message):
-        for player in self.connected_players.values():
+        for player in list(self.connected_players.values()):
             self.socket.send_to_reliable(message, player.address, self.unconfirmed_message_storage)
 
         if self.hosting_client != None:

@@ -4,6 +4,9 @@ import messages
 from dataclasses import dataclass, field
 from .camera import Camera
 import pygame
+from . import arenaprops
+import math
+import random
 
 RADIUS = 0.5
 RECOIL_STRENGTH = 13
@@ -20,8 +23,12 @@ class ServerPlayer:
         self.mouse_position_world_space = Vec2d.zero()
         self.health = MAX_HEALTH
 
+        angle = random.random() * math.tau
+        spawn_position = Vec2d(arenaprops.PLAYER_SPAWN_RADIUS, 0).rotated(angle)
+
         self.physics_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=1, moment=float("inf"))
-        self.physics_body.position = Vec2d(0, 5)
+        self.physics_body.position = spawn_position
+        print(f"{self.physics_body.position = }")
         self.collider = pymunk.Circle(self.physics_body, radius=RADIUS)
         self.collider.elasticity = 0.8
         self.collider.friction = 0.5

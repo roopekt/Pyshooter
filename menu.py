@@ -286,7 +286,7 @@ class LobbyServer(ThreadOwner):
             elif isinstance(message, messages.GameStartRequest):
                 self.game_start_time = time.time() + GAME_START_DELAY_SECONDS
             else:
-                raise Exception(f"Lobby server cannot handle a {type(message)}.")
+                print(f"{type(message)} ignored by lobby server.")
             
     def send_post_frame_messages(self):
         self.communication_server.send_to_all_reliable(messages.LobbyStateUpdate(

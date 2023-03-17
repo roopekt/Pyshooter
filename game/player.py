@@ -11,6 +11,7 @@ import random
 
 RADIUS = 0.5
 RECOIL_STRENGTH = 13
+RECOIL_EXPONENT = 1.2
 MAX_HEALTH = 5
 
 ALIVE_COLOR = pygame.Color("red")
@@ -46,7 +47,7 @@ class ServerPlayer:
 
     def apply_recoil(self, shoot_message: messages.ShootMessage):
         shoot_direction = (shoot_message.mouse_position_world_space - shoot_message.player_position).normalized()
-        impulse = -shoot_message.relative_size**2 * RECOIL_STRENGTH * shoot_direction
+        impulse = -shoot_message.relative_size**RECOIL_EXPONENT * RECOIL_STRENGTH * shoot_direction
         self.physics_body.apply_impulse_at_local_point(impulse)
 
     def change_health(self, health_change):

@@ -4,6 +4,7 @@ import messages
 from .camera import Camera
 import pygame
 from objectid import ObjectId, get_new_object_id
+import mymath
 
 MAX_RADIUS = 0.3
 SPAWN_OFFSET = 0.5 # offset from the center of player
@@ -56,9 +57,17 @@ class ClientBullet:
         self.position = update_message.position
 
     def render(self, camera: Camera):
+        pos = camera.get_screen_position(self.position)
+        window_rect = camera.get_window_rect()
+
+        # pygame.draw.circle may bug out outside the screen
+        # https://github.com/pygame/pygame/issues/3143
+        if not window_rect.collidepoint(pos):
+            return
+
         pygame.draw.circle(
             camera.window_container.window,
             pygame.Color("black"),
-            camera.get_screen_position(self.position),
+            pos,
             self.radius * camera.get_graphical_scale_factor()
         )

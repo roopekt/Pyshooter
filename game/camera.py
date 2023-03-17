@@ -89,3 +89,6 @@ class Camera:
     def get_aspect_ratio(self):
         window_size = self.get_window_size()
         return window_size.x / window_size.y
+    
+    def get_window_rect(self):
+        return self.window_container.window.get_rect()

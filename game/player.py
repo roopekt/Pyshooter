@@ -6,11 +6,12 @@ from .camera import Camera
 import pygame
 from . import arenaprops
 import math
+import mymath
 import random
 
 RADIUS = 0.5
 RECOIL_STRENGTH = 13
-MAX_HEALTH = 9.5
+MAX_HEALTH = 5
 
 ALIVE_COLOR = pygame.Color("red")
 ALMOST_DEAD_COLOR = pygame.Color(128, 128, 128)
@@ -28,7 +29,6 @@ class ServerPlayer:
 
         self.physics_body = pymunk.Body(body_type=pymunk.Body.DYNAMIC, mass=1, moment=float("inf"))
         self.physics_body.position = spawn_position
-        print(f"{self.physics_body.position = }")
         self.collider = pymunk.Circle(self.physics_body, radius=RADIUS)
         self.collider.elasticity = 0.2
         self.collider.friction = 0.5
@@ -49,6 +49,10 @@ class ServerPlayer:
         impulse = -shoot_message.relative_size**2 * RECOIL_STRENGTH * shoot_direction
         self.physics_body.apply_impulse_at_local_point(impulse)
 
+    def change_health(self, health_change):
+        self.health += health_change
+        self.health = mymath.clampf(self.health, -1e6, MAX_HEALTH)
+
 @dataclass
 class ClientPlayer:
     is_owned_by_client: bool # true if this is the avatar of the client of this machine
@@ -67,7 +71,8 @@ class ClientPlayer:
         graphic_scaler = camera.get_graphical_scale_factor()
 
         if self.health > 0:
-            color = ALMOST_DEAD_COLOR.lerp(ALIVE_COLOR, self.health / MAX_HEALTH)
+            t = mymath.clampf(self.health / MAX_HEALTH, 0, 1)
+            color = ALMOST_DEAD_COLOR.lerp(ALIVE_COLOR, t)
         else:
             color = DEAD_COLOR
 

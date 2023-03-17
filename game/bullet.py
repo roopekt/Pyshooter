@@ -10,6 +10,7 @@ SPAWN_OFFSET = 0.5 # offset from the center of player
 SPEED = 20
 MAX_TRAVEL_DISTANCE = 200
 MAX_DAMAGE = 1
+HEAL_PROPORTION = 2/3 # the player having shot the bullet will be healed upon hitting another player, proportional to the bullet's damage
 
 class ServerBullet:
 

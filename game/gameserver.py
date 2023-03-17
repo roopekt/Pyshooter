@@ -6,7 +6,7 @@ from thread_owner import ThreadOwner
 from communication import CommunicationServer
 import messages
 from .player import ServerPlayer
-from .bullet import ServerBullet
+from .bullet import ServerBullet, HEAL_PROPORTION
 from itertools import permutations
 from . import arena
 from objectid import ObjectId
@@ -105,8 +105,7 @@ class GameServer(ThreadOwner):
                     self.destroy_bullet(colliderB.object_id)
                     return True
                 elif colliderB.type == ServerPlayer and colliderB.object_id != bulletA.shooter_id:
-                    self.players[colliderB.object_id].health -= bulletA.damage
-                    self.destroy_bullet(bulletA.id)
+                    self.on_bullet_player_collision(bulletA, colliderB.object_id)
                     return True
                 elif colliderB.type == arena.ServerWall:
                     if colliderB.object_id not in self.arena.walls:
@@ -119,3 +118,21 @@ class GameServer(ThreadOwner):
                     return True
 
         return True
+    
+    def on_bullet_player_collision(self, bullet: ServerBullet, hit_player_id: ObjectId):
+        hit_player = None
+        try:
+            hit_player = self.players[hit_player_id]
+            hit_player.change_health(-bullet.damage)
+        except KeyError:
+            print(f"Didn't find player {hit_player_id} (was hit by a bullet)")
+
+        if hit_player == None or hit_player.health <= 0:# can't heal from a dead body
+            return
+        try:
+            shooter_player = self.players[bullet.shooter_id]
+            shooter_player.change_health(HEAL_PROPORTION * bullet.damage)
+        except KeyError:
+            print(f"Didn't find player {bullet.shooter_id} (trying to heal)")
+
+        self.destroy_bullet(bullet.id)       

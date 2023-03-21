@@ -1,4 +1,3 @@
 pygame
 pymunk
 pygame-gui
-screeninfo

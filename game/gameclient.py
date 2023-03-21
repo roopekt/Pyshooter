@@ -51,7 +51,7 @@ class GameClient(scene.Scene):
         self.send_post_frame_messages()
 
     def handle_messages(self):
-        for message in self.communication_client.poll_messages():
+        for message in self.communication_client.poll_messages(type_to_poll=messages.GameMessage):
             if isinstance(message, messages.PlayerStateUpdate):
                 if message.player_id not in self.players:
                     self.players[message.player_id] = player.ClientPlayer(is_owned_by_client=False)
@@ -70,8 +70,6 @@ class GameClient(scene.Scene):
                     self.bullets.pop(message.bullet_id)
             elif isinstance(message, messages.ArenaUpdate):
                 self.arena.handle_arena_update(message)
-            elif isinstance(message, messages.LobbyStateUpdate):
-                print(f"{type(message)} ignored by game client.")
             else:
                 raise Exception(f"Client cannot handle a {type(message)}.")
 

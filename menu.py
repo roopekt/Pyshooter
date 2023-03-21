@@ -230,7 +230,7 @@ class LobbyClient(scene.Scene):
         pygame.display.flip()
 
     def handle_messages(self):
-        for message in self.communication_client.poll_messages():
+        for message in self.communication_client.poll_messages(type_to_poll=messages.LobbyMessage):
             if isinstance(message, messages.LobbyStateUpdate):
                 self.update_connected_players(message)
                 self.update_game_start_timer(message)
@@ -238,8 +238,7 @@ class LobbyClient(scene.Scene):
                     self.scene_to_switch_to = scene.SCENE_GAME
                     print("Entering game.")
             else:
-                self.scene_to_switch_to = scene.SCENE_GAME
-                print(f"Unexpected message ({type(message)}) received by lobby. Entering game.")
+                raise Exception(f"LobbyClient can't handle a {type(message)}")
 
     def update_connected_players(self, message: messages.LobbyStateUpdate):
         self.player_list_textbox.set_text('\n'.join(message.connected_player_names))
@@ -278,7 +277,7 @@ class LobbyServer(ThreadOwner):
             self.send_post_frame_messages()
 
     def handle_messages(self):
-        for message_with_id in self.communication_server.poll_messages():
+        for message_with_id in self.communication_server.poll_messages(type_to_poll=messages.LobbyMessage):
             message = message_with_id.payload
             sender_id = message_with_id.sender_id
 
@@ -287,7 +286,7 @@ class LobbyServer(ThreadOwner):
             elif isinstance(message, messages.GameStartRequest):
                 self.game_start_time = time.time() + GAME_START_DELAY_SECONDS
             else:
-                print(f"{type(message)} ignored by lobby server.")
+                raise Exception(f"LobbyServer can't handle a {type(message)}")
             
     def send_post_frame_messages(self):
         self.communication_server.send_to_all_reliable(messages.LobbyStateUpdate(

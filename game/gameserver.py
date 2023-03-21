@@ -40,7 +40,7 @@ class GameServer(ThreadOwner):
             self.send_post_frame_messages()
 
     def handle_messages(self):
-        for message_with_id in self.communication_server.poll_messages():
+        for message_with_id in self.communication_server.poll_messages(type_to_poll=messages.GameMessage):
             message = message_with_id.payload
             sender_id = message_with_id.sender_id
 

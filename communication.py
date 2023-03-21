@@ -5,7 +5,7 @@ import pickle
 import messages
 from random import getrandbits, random
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, Callable
 from dataclasses import dataclass, field
 from time import time, sleep
 from objectid import ObjectId, get_new_object_id
@@ -15,11 +15,11 @@ RELIABLE_MESSAGE_ID_STORAGE_SIZE = 1024
 RELIABLE_MESSAGE_RESEND_DELAY = 30 #in milli seconds
 RESEND_MESSAGE_RESEND_ITERATION_DELAY = 15
 
-# reliable communicatin protocol:
+# reliable communication protocol:
 # at first, the message (ReliableMessage) is sent multiple times
 # if the receiver receives the message, it sends a confirmation (MessageConfirmation)
 # the message is resent on regular intervals, until a confirmation is received
-# the receiver remembers recently received messages (by id), and only acts on the first message
+# the receiver remembers recently received messages (by id), and only acts on the first message (confirmation is always sent)
 
 SIMULATED_PACKAGE_LOSS_PERCENTAGE = 0
 if float(SIMULATED_PACKAGE_LOSS_PERCENTAGE) != 0.0:
@@ -35,11 +35,16 @@ class ReceivedMessageStorage:
         with self.lock:
             self.messages.append(message)
 
-    def poll(self):
+    def poll(self, filter_predicate: Callable[..., bool]):
         with self.lock:
-            messages = self.messages
-            self.messages = []
-        return messages
+            output = [m for m in self.messages if filter_predicate(m)]
+            self.messages = [m for m in self.messages if m not in output]
+            unhandled_count = len(self.messages)
+
+        if unhandled_count > 100:
+            print(f"WARNING: {unhandled_count} messages left in buffer.")
+
+        return output
 
 class ConstSizeQueue:
 
@@ -157,8 +162,9 @@ class CommunicationEndpoint(ThreadOwner, ABC):
 
             sleep(RESEND_MESSAGE_RESEND_ITERATION_DELAY / 1000)
 
-    def poll_messages(self):
-        return self.message_storage.poll()
+    @abstractmethod
+    def poll_messages(self, type_to_poll: type = object) -> list:
+        pass
 
     def enqueue_message(self, message):
         self.message_storage.add(message)
@@ -241,6 +247,9 @@ class CommunicationServer(CommunicationEndpoint):
         client = self.connected_players[player_id]
         self.socket.send_to_reliable(message, client.address, self.unconfirmed_message_storage)
 
+    def poll_messages(self, type_to_poll: type = object) -> list[messages.MessageToServerWithId]:
+        return self.message_storage.poll(lambda message: isinstance(message.payload, type_to_poll))
+
 class CommunicationClient(ABC):
 
     def __init__(self):
@@ -255,7 +264,7 @@ class CommunicationClient(ABC):
         pass
 
     @abstractmethod
-    def poll_messages(self) -> list[messages.MessageToClient]:
+    def poll_messages(self, type_to_poll: type = object) -> list[messages.MessageToClient]:
         pass
 
 class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
@@ -295,6 +304,9 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
     def send_reliable(self, message):
         self.socket.send_to_reliable(messages.MessageToServerWithId(self.id, message), self.server_address, self.unconfirmed_message_storage)
 
+    def poll_messages(self, type_to_poll: type = object) -> list:
+        return self.message_storage.poll(lambda message: isinstance(message, type_to_poll))
+
 # on the same machine as server, doesn't need internet
 class HostingCommunicationClient(CommunicationClient):
 
@@ -313,8 +325,8 @@ class HostingCommunicationClient(CommunicationClient):
     def send_reliable(self, message):
         self.send(message)
 
-    def poll_messages(self):
-        return self.message_storage.poll()
+    def poll_messages(self, type_to_poll: type = object) -> list:
+        return self.message_storage.poll(lambda message: isinstance(message, type_to_poll))
 
 class ServerSidePlayerHandle:
 

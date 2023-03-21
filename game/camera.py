@@ -80,6 +80,9 @@ class Camera:
         p += self.position
         return p
     
+    def get_top_left_corner_world_space(self):
+        return self.get_world_position((0, 0))
+    
     def get_bottom_left_corner_world_space(self):
         return self.get_world_position((0, self.window_container.window.get_height() - 1))
     
@@ -92,3 +95,20 @@ class Camera:
     
     def get_window_rect(self):
         return self.window_container.window.get_rect()
+    
+@dataclass
+class WorldSpaceRect:
+    position: Vec2d
+    size: Vec2d
+    # what position specifies. e.g. (0, 0) = center, (-1, -1) = bottom left corner
+    pivot: Vec2d = field(default_factory=Vec2d.zero)
+
+    def get_screen_space_rect(self, camera: Camera) -> pygame.Rect:
+        anchor_offset = -mymath.multiply_compwise(self.pivot, self.size) / 2
+        corner_offset = -self.size / 2
+        corner_world_space = self.position + anchor_offset + corner_offset
+        corner = camera.get_screen_position(corner_world_space)
+
+        size = mymath.pymunk_vec_to_pygame_vec(self.size * camera.get_graphical_scale_factor())
+
+        return pygame.Rect(corner, size)

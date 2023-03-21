@@ -8,8 +8,11 @@ from .background import Background
 import scene
 from .arena import ClientArena
 from windowcontainer import WindowContainer
+from . import sprite
+from pymunk import Vec2d
 
 RELOAD_TIME = 1 # in seconds
+HUD_ICON_WIDTH = 20
 
 class GameClient(scene.Scene):
 
@@ -28,6 +31,9 @@ class GameClient(scene.Scene):
         self.window = window_container
         self.background = Background()
         self.camera = Camera(self.window)
+
+        self.damage_icon_sprite = sprite.Sprite("assets/sword.png",  HUD_ICON_WIDTH, transparent=True, screen_space=True, pivot="tl-corner")
+        self.recoil_icon_sprite = sprite.Sprite("assets/recoil.png", HUD_ICON_WIDTH, transparent=True, screen_space=True, pivot="tl-corner")
 
     def handle_events(self, events: list[pygame.event.Event]):
         self.get_own_avatar().mouse_position_world_space = self.camera.get_world_position(pygame.mouse.get_pos())
@@ -86,21 +92,54 @@ class GameClient(scene.Scene):
         for _bullet in self.bullets.values():
             _bullet.render(self.camera)
         self.arena.render(self.camera)
+        self.render_HUD()
 
         pygame.display.flip()
 
     def shoot(self):
-        time_of_shoot = time()
-        elapsed = time_of_shoot - self.time_of_last_shoot
-        self.time_of_last_shoot = time_of_shoot
-        relative_size = min(1, elapsed / RELOAD_TIME)
+        bullet_relative_size = self.get_bullet_relative_size()
+        self.time_of_last_shoot = time()
 
         own_avatar = self.get_own_avatar()
         self.communication_client.send_reliable(messages.ShootMessage(
             player_position = own_avatar.position,
             mouse_position_world_space = own_avatar.mouse_position_world_space,
-            relative_size = relative_size
+            relative_size = bullet_relative_size
         ))
+
+    def get_bullet_relative_size(self):
+        now = time()
+        elapsed = now - self.time_of_last_shoot
+        return min(1, elapsed / RELOAD_TIME)
 
     def get_own_avatar(self):
         return self.players[self.communication_client.id]
+
+    def render_HUD(self):
+        bullet_relative_size = self.get_bullet_relative_size()
+        relative_damage = bullet_relative_size**2
+        relative_recoil = bullet_relative_size**player.RECOIL_EXPONENT
+        corner = self.camera.get_top_left_corner_world_space()
+
+        padding = 5
+        bar_thickness = 6
+        bar_length = 100
+
+        self.damage_icon_sprite.render(self.camera, Vec2d(padding, padding))
+        self.recoil_icon_sprite.render(self.camera, Vec2d(padding, padding + HUD_ICON_WIDTH))
+
+        damage_rect = pygame.Rect((2*padding + HUD_ICON_WIDTH, padding + 0.5*HUD_ICON_WIDTH - bar_thickness/2), (bar_length * relative_damage, bar_thickness))
+        recoil_rect = pygame.Rect((2*padding + HUD_ICON_WIDTH, padding + 1.5*HUD_ICON_WIDTH - bar_thickness/2), (bar_length * relative_recoil, bar_thickness))
+
+        color = pygame.Color("black") if bullet_relative_size >= 1 else pygame.Color("white")
+
+        pygame.draw.rect(
+            self.camera.window_container.window,
+            color,
+            damage_rect
+        )
+        pygame.draw.rect(
+            self.camera.window_container.window,
+            color,
+            recoil_rect
+        )

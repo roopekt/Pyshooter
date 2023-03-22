@@ -9,13 +9,13 @@ import math
 import mymath
 import random
 from pygame import freetype
+from . import playercolor
 
 RADIUS = 0.5
 RECOIL_STRENGTH = 13
 RECOIL_EXPONENT = 1.2
 MAX_HEALTH = 5
 
-ALIVE_COLOR = pygame.Color("red")
 ALMOST_DEAD_COLOR = pygame.Color(128, 128, 128)
 DEAD_COLOR = pygame.Color("black")
 
@@ -80,14 +80,15 @@ class ClientPlayer:
 
         if self.health > 0:
             t = mymath.clampf(self.health / MAX_HEALTH, 0, 1)
-            color = ALMOST_DEAD_COLOR.lerp(ALIVE_COLOR, t)
+            alive_color = playercolor.get_pygame_color(self.name)
+            player_color = ALMOST_DEAD_COLOR.lerp(alive_color, t)
         else:
-            color = DEAD_COLOR
+            player_color = DEAD_COLOR
 
         #body
         pygame.draw.circle(
             camera.window_container.window,
-            color,
+            player_color,
             camera.get_screen_position(self.position),
             RADIUS * graphic_scaler
         )

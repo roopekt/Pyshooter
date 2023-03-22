@@ -13,6 +13,7 @@ import math
 import connectioncode
 import errors
 from windowcontainer import WindowContainer
+from game import playercolor
 
 BACKGROUND_COLOR = pygame.Color("#0e0e0f")
 GAME_START_DELAY_SECONDS = 3
@@ -241,7 +242,11 @@ class LobbyClient(scene.Scene):
                 raise Exception(f"LobbyClient can't handle a {type(message)}")
 
     def update_connected_players(self, message: messages.LobbyStateUpdate):
-        self.player_list_textbox.set_text('\n'.join(message.connected_player_names))
+        text = '\n'.join([
+            f"<font color='{playercolor.get_pygame_gui_color(name)}'>{name}</font>"
+            for name in message.connected_player_names
+        ])#color={playercolor.get_pygame_gui_color(name)}
+        self.player_list_textbox.set_text(text)
 
     def update_game_start_timer(self, message: messages.LobbyStateUpdate):
         if message.time_to_game_start != None:

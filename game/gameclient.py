@@ -16,12 +16,13 @@ HUD_ICON_WIDTH = 20
 
 class GameClient(scene.Scene):
 
-    def __init__(self, communication_client: CommunicationClient, window_container: WindowContainer):
+    def __init__(self, communication_client: CommunicationClient, window_container: WindowContainer, name: str):
         super().__init__(window_container, max_fps=60)
         self.communication_client = communication_client
+        self.name = name
 
         self.players = {
-            self.communication_client.id : player.ClientPlayer(is_owned_by_client=True)
+            self.communication_client.id : player.ClientPlayer(is_owned_by_client=True, name=self.name)
         }
         self.bullets: dict[messages.ObjectId, bullet.ClientBullet] = {}
         self.time_of_last_shoot = time()
@@ -34,6 +35,8 @@ class GameClient(scene.Scene):
 
         self.damage_icon_sprite = sprite.Sprite("assets/sword.png",  HUD_ICON_WIDTH, transparent=True, screen_space=True, pivot="tl-corner")
         self.recoil_icon_sprite = sprite.Sprite("assets/recoil.png", HUD_ICON_WIDTH, transparent=True, screen_space=True, pivot="tl-corner")
+
+        self.communication_client.send_reliable(messages.JoinGameMessage(self.name))
 
     def handle_events(self, events: list[pygame.event.Event]):
         self.get_own_avatar().mouse_position_world_space = self.camera.get_world_position(pygame.mouse.get_pos())
@@ -52,7 +55,12 @@ class GameClient(scene.Scene):
 
     def handle_messages(self):
         for message in self.communication_client.poll_messages(type_to_poll=messages.GameMessage):
-            if isinstance(message, messages.PlayerStateUpdate):
+            if isinstance(message, messages.NewPlayerNotification):
+                if message.player_id not in self.players:
+                    self.players[message.player_id] = player.ClientPlayer(is_owned_by_client=False)
+
+                self.players[message.player_id].name = message.player_name
+            elif isinstance(message, messages.PlayerStateUpdate):
                 if message.player_id not in self.players:
                     self.players[message.player_id] = player.ClientPlayer(is_owned_by_client=False)
 
@@ -87,9 +95,9 @@ class GameClient(scene.Scene):
 
         for _player in self.players.values():
             _player.render(self.camera)
+        self.arena.render(self.camera)
         for _bullet in self.bullets.values():
             _bullet.render(self.camera)
-        self.arena.render(self.camera)
         self.render_HUD()
 
         pygame.display.flip()

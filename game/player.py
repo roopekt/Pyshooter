@@ -8,6 +8,7 @@ from . import arenaprops
 import math
 import mymath
 import random
+from pygame import freetype
 
 RADIUS = 0.5
 RECOIL_STRENGTH = 13
@@ -18,10 +19,15 @@ ALIVE_COLOR = pygame.Color("red")
 ALMOST_DEAD_COLOR = pygame.Color(128, 128, 128)
 DEAD_COLOR = pygame.Color("black")
 
+freetype.init()
+PLAYER_LABEL_FONT = freetype.SysFont("calibri", 15)
+PLAYER_LABEL_OFFSET = Vec2d(0, 1)
+
 class ServerPlayer:
     
     def __init__(self, id: messages.ObjectId, physics_world: pymunk.Space):
         self.id = id
+        self.name = ""
         self.mouse_position_world_space = Vec2d.zero()
         self.health = MAX_HEALTH
 
@@ -60,6 +66,7 @@ class ClientPlayer:
     position: Vec2d = field(default_factory=Vec2d.zero)
     health: float = MAX_HEALTH
     mouse_position_world_space: Vec2d = field(default_factory=Vec2d.zero)
+    name: str = ""
 
     def update_state(self, update_message: messages.PlayerStateUpdate):
         self.position = update_message.position
@@ -77,6 +84,7 @@ class ClientPlayer:
         else:
             color = DEAD_COLOR
 
+        #body
         pygame.draw.circle(
             camera.window_container.window,
             color,
@@ -84,11 +92,26 @@ class ClientPlayer:
             RADIUS * graphic_scaler
         )
 
+        #gun
         if self.health > 0:
-            gun_pos = self.position + (self.mouse_position_world_space - self.position).scale_to_length(RADIUS)
+            offset = self.mouse_position_world_space - self.position
+            offset = Vec2d(0, 0) if offset.length < 1e-9 else offset.scale_to_length(RADIUS)
+            gun_pos = self.position + offset
+            
             pygame.draw.circle(
                 camera.window_container.window,
                 pygame.Color(255, 255, 0),
                 camera.get_screen_position(gun_pos),
                 RADIUS * graphic_scaler / 3
             )
+
+        #name label
+        label_pos = camera.get_screen_position(self.position + PLAYER_LABEL_OFFSET)
+        label_rect = PLAYER_LABEL_FONT.get_rect(self.name)
+        label_pos -= pygame.Vector2(label_rect.width / 2, 0)
+        PLAYER_LABEL_FONT.render_to(
+            camera.window_container.window,
+            label_pos,
+            self.name,
+            fgcolor=pygame.Color("black")
+        )

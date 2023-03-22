@@ -78,7 +78,7 @@ class SceneManager:
         print(f"Starting game on {self.get_connection_code()} = {self.get_server_ip()}")
 
         communication_client = self.get_communication_client()
-        game_client = GameClient(communication_client, self.window_container)
+        game_client = GameClient(communication_client, self.window_container, self.game_parameters.player_name)
 
         game_server = None
         if self.game_parameters.is_host:

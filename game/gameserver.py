@@ -53,6 +53,12 @@ class GameServer(ThreadOwner):
                 new_bullet = ServerBullet(message, sender_id, self.physics_world)
                 self.bullets[new_bullet.id] = new_bullet
                 self.players[sender_id].apply_recoil(message)
+            elif isinstance(message, messages.JoinGameMessage):
+                self.players[sender_id].name = message.player_name
+                self.communication_server.send_to_all_reliable(messages.NewPlayerNotification(
+                    player_id = sender_id,
+                    player_name = message.player_name
+                ))
             else:
                 raise Exception(f"Server cannot handle a {type(message)}.")
             
@@ -60,7 +66,17 @@ class GameServer(ThreadOwner):
         self.players[player_id] = ServerPlayer(player_id, self.physics_world)
 
         # send the arena
-        self.communication_server.send_reliable_to(self.arena.try_get_arena_update_message(update_dirty_only=False), player_id)
+        self.communication_server.send_reliable_to(
+            self.arena.try_get_arena_update_message(update_dirty_only=False),
+            player_id
+        )
+        # send player names
+        for _player_id, _player in self.players.items():
+            if _player.name != "":
+                self.communication_server.send_reliable_to(
+                    messages.NewPlayerNotification(_player_id, _player.name),
+                    player_id
+                )
 
     def update_bullets(self, delta_time: float):
         bullet_ids_to_destroy = []

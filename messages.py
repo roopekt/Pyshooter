@@ -61,6 +61,15 @@ class ArenaUpdate(MessageToClient, GameMessage):
     wall_updates: dict[ObjectId, WallUpdate]
 
 @dataclass
+class JoinGameMessage(MessageToServer, GameMessage):
+    player_name: str
+
+@dataclass
+class NewPlayerNotification(MessageToClient, GameMessage):
+    player_id: ObjectId
+    player_name: str
+
+@dataclass
 class EnterLobbyMessage(MessageToServer, LobbyMessage):
     player_name: str
 

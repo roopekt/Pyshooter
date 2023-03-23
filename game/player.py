@@ -94,7 +94,7 @@ class ClientPlayer:
         )
 
         #gun
-        if self.health > 0:
+        if self.is_alive():
             offset = self.mouse_position_world_space - self.position
             offset = Vec2d(0, 0) if offset.length < 1e-9 else offset.scale_to_length(RADIUS)
             gun_pos = self.position + offset
@@ -116,3 +116,6 @@ class ClientPlayer:
             self.name,
             fgcolor=pygame.Color("black")
         )
+
+    def is_alive(self):
+        return self.health > 0

@@ -70,6 +70,14 @@ class NewPlayerNotification(MessageToClient, GameMessage):
     player_name: str
 
 @dataclass
+class GoToLobbyRequest(MessageToServer, GameMessage):
+    pass
+
+@dataclass
+class GoToLobbyNotification(MessageToClient, GameMessage):
+    pass
+
+@dataclass
 class EnterLobbyMessage(MessageToServer, LobbyMessage):
     player_name: str
 

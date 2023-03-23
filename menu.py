@@ -163,6 +163,7 @@ class LobbyClient(scene.Scene):
 
     def __init__(self, communication_client: CommunicationClient, game_parameters: gameparameters.GameParameters, window_container: WindowContainer):
         self.communication_client = communication_client
+        self.communication_client.remove_messages_of_other_types(messages.LobbyMessage)
         self.game_parameters = game_parameters
         super().__init__(window_container, max_fps=50)
         self.gui_manager = pygame_gui.UIManager(self.window_container.window.get_size(), GUI_THEME_PATH)
@@ -265,6 +266,7 @@ class LobbyServer(ThreadOwner):
 
     def __init__(self, communication_server: CommunicationServer, start = False):
         self.communication_server = communication_server
+        self.communication_server.remove_messages_of_other_types(messages.LobbyMessage)
         self.max_fps = 20
 
         self.players: dict[messages.ObjectId, str] = {}

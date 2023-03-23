@@ -21,6 +21,7 @@ class GameServer(ThreadOwner):
         self.physics_world.add_default_collision_handler().pre_solve = self.on_collision
 
         self.communication_server = communication_server
+        self.communication_server.remove_messages_of_other_types(messages.GameMessage)
         self.arena = arena.ServerArena(self.physics_world)
         self.players: dict[messages.ObjectId, ServerPlayer] = {}
         self.bullets: dict[messages.ObjectId, ServerBullet] = {}
@@ -59,6 +60,8 @@ class GameServer(ThreadOwner):
                     player_id = sender_id,
                     player_name = message.player_name
                 ))
+            elif isinstance(message, messages.GoToLobbyRequest):
+                self.communication_server.send_to_all_reliable(messages.GoToLobbyNotification())
             else:
                 raise Exception(f"Server cannot handle a {type(message)}.")
             

@@ -1,7 +1,7 @@
 import pygame
 from communication import CommunicationClient
 import messages
-from . import player, bullet
+from . import player, bullet, playercolor
 from time import time
 from .camera import Camera
 from .background import Background
@@ -10,15 +10,20 @@ from .arena import ClientArena
 from windowcontainer import WindowContainer
 from . import sprite
 from pymunk import Vec2d
+from collections import Counter
+from pygame import freetype
 
 RELOAD_TIME = 1 # in seconds
 HUD_ICON_WIDTH = 20
+WIN_MESSAGE_FONT = freetype.SysFont("verdana", 100)
+GO_TO_LOBBY_MESSAGE_FONT = freetype.SysFont("calibri", 15, bold=True)
 
 class GameClient(scene.Scene):
 
     def __init__(self, communication_client: CommunicationClient, window_container: WindowContainer, name: str):
         super().__init__(window_container, max_fps=60)
         self.communication_client = communication_client
+        self.communication_client.remove_messages_of_other_types(messages.GameMessage)
         self.name = name
 
         self.players = {
@@ -47,6 +52,9 @@ class GameClient(scene.Scene):
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.get_own_avatar().health > 0:
                     self.shoot()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                if self.has_game_ended():
+                    self.communication_client.send_reliable(messages.GoToLobbyRequest())
 
     def update(self):
         self.handle_messages()
@@ -78,6 +86,8 @@ class GameClient(scene.Scene):
                     self.bullets.pop(message.bullet_id)
             elif isinstance(message, messages.ArenaUpdate):
                 self.arena.handle_arena_update(message)
+            elif isinstance(message, messages.GoToLobbyNotification):
+                self.scene_to_switch_to = scene.SCENE_LOBBY
             else:
                 raise Exception(f"Client cannot handle a {type(message)}.")
 
@@ -99,6 +109,9 @@ class GameClient(scene.Scene):
         for _bullet in self.bullets.values():
             _bullet.render(self.camera)
         self.render_HUD()
+
+        if self.has_game_ended():
+            self.render_end_screen()
 
         pygame.display.flip()
 
@@ -149,3 +162,43 @@ class GameClient(scene.Scene):
             color,
             recoil_rect
         )
+
+    def has_game_ended(self):
+        return Counter([p.is_alive() for p in self.players.values()])[True] <= 1
+
+    def render_end_screen(self):
+        alive_players = [p for p in self.players.values() if p.is_alive()]
+        assert len(alive_players) <= 1, f"Game ended when {len(alive_players)} players still alive."
+        if len(alive_players) == 0:
+            print("WARNING: everyone is dead")
+
+        center = self.camera.get_window_size() / 2
+
+        # render win text
+        if len(alive_players) == 1:
+            winner_name = alive_players[0].name
+            win_text = f"{winner_name} won!"
+
+            text_pos = center + pygame.Vector2(0, -80)
+            text_rect = WIN_MESSAGE_FONT.get_rect(win_text)
+            text_pos -= pygame.Vector2(text_rect.width / 2, 0)
+            WIN_MESSAGE_FONT.render_to(
+                self.camera.window_container.window,
+                text_pos,
+                win_text,
+                fgcolor=playercolor.get_pygame_color(winner_name)
+            )
+
+        #render instructions for going to lobby
+        text = "Press Enter to enter lobby."
+        text_pos = center
+        text_rect = GO_TO_LOBBY_MESSAGE_FONT.get_rect(text)
+        text_pos -= pygame.Vector2(text_rect.width / 2, 0)
+        GO_TO_LOBBY_MESSAGE_FONT.render_to(
+            self.camera.window_container.window,
+            text_pos,
+            text,
+            fgcolor=pygame.Color("white")
+        )
+
+

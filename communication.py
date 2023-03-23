@@ -3,7 +3,7 @@ import threading
 from thread_owner import ThreadOwner
 import pickle
 import messages
-from random import getrandbits, random
+from random import random
 from abc import ABC, abstractmethod
 from typing import Optional, Callable
 from dataclasses import dataclass, field
@@ -45,6 +45,10 @@ class ReceivedMessageStorage:
             print(f"WARNING: {unhandled_count} messages left in buffer.")
 
         return output
+    
+    def remove_non_matching(self, filter_predicate: Callable[..., bool]):
+        with self.lock:
+            self.messages = [m for m in self.messages if filter_predicate(m)]
 
 class ConstSizeQueue:
 
@@ -249,6 +253,9 @@ class CommunicationServer(CommunicationEndpoint):
 
     def poll_messages(self, type_to_poll: type = object) -> list[messages.MessageToServerWithId]:
         return self.message_storage.poll(lambda message: isinstance(message.payload, type_to_poll))
+    
+    def remove_messages_of_other_types(self, valid_type: type = object):
+        self.message_storage.remove_non_matching(lambda message: isinstance(message.payload, valid_type))
 
 class CommunicationClient(ABC):
 
@@ -265,6 +272,10 @@ class CommunicationClient(ABC):
 
     @abstractmethod
     def poll_messages(self, type_to_poll: type = object) -> list[messages.MessageToClient]:
+        pass
+
+    @abstractmethod
+    def remove_messages_of_other_types(self, valid_type: type = object):
         pass
 
 class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
@@ -307,6 +318,9 @@ class InternetCommunicationClient(CommunicationEndpoint, CommunicationClient):
     def poll_messages(self, type_to_poll: type = object) -> list:
         return self.message_storage.poll(lambda message: isinstance(message, type_to_poll))
 
+    def remove_messages_of_other_types(self, valid_type: type = object):
+        self.message_storage.remove_non_matching(lambda message: isinstance(message, valid_type))
+
 # on the same machine as server, doesn't need internet
 class HostingCommunicationClient(CommunicationClient):
 
@@ -327,6 +341,9 @@ class HostingCommunicationClient(CommunicationClient):
 
     def poll_messages(self, type_to_poll: type = object) -> list:
         return self.message_storage.poll(lambda message: isinstance(message, type_to_poll))
+    
+    def remove_messages_of_other_types(self, valid_type: type = object):
+        self.message_storage.remove_non_matching(lambda message: isinstance(message, valid_type))
 
 class ServerSidePlayerHandle:
 

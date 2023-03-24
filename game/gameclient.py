@@ -13,7 +13,7 @@ from pymunk import Vec2d
 from collections import Counter
 from pygame import freetype
 
-RELOAD_TIME = 1 # in seconds
+RELOAD_TIME = 0.7 # in seconds
 HUD_ICON_WIDTH = 20
 WIN_MESSAGE_FONT = freetype.SysFont("verdana", 100)
 GO_TO_LOBBY_MESSAGE_FONT = freetype.SysFont("calibri", 15, bold=True)

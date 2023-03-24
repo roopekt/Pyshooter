@@ -127,13 +127,7 @@ class GameServer(ThreadOwner):
                     self.on_bullet_player_collision(bulletA, colliderB.object_id)
                     return True
                 elif colliderB.type == arena.ServerWall:
-                    if colliderB.object_id not in self.arena.walls:
-                        return True
-                    
-                    wall = self.arena.walls[colliderB.object_id]
-                    wall.take_damage(bulletA.damage)
-
-                    self.destroy_bullet(bulletA.id)
+                    self.on_bullet_wall_collision(bulletA, colliderB.object_id, arbiter)
                     return True
 
         return True
@@ -154,4 +148,25 @@ class GameServer(ThreadOwner):
         except KeyError:
             print(f"Didn't find player {bullet.shooter_id} (trying to heal)")
 
-        self.destroy_bullet(bullet.id)       
+        self.destroy_bullet(bullet.id)  
+
+    def on_bullet_wall_collision(self, bullet: ServerBullet, wall_id: ObjectId, arbiter: pymunk.Arbiter):
+        if bullet.id_of_last_wall_hit == wall_id:
+            return
+        
+        bullet.id_of_last_wall_hit = wall_id
+
+        wall = None
+        try:
+            wall = self.arena.walls[wall_id]
+        except KeyError:
+            print(f"Couldn't find wall {wall_id} (was hit by a bullet)")
+
+        if bullet.bounces_left > 0:
+            bullet.velocity -= 2 * bullet.velocity.projection(arbiter.normal)
+            bullet.bounces_left -= 1
+            
+            if wall != None:
+                wall.take_damage(bullet.damage)
+        else:
+            self.destroy_bullet(bullet.id)

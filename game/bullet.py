@@ -5,6 +5,7 @@ from .camera import Camera
 import pygame
 from objectid import ObjectId, get_new_object_id
 import mymath
+from typing import Optional
 
 MAX_RADIUS = 0.3
 SPAWN_OFFSET = 0.5 # offset from the center of player
@@ -20,6 +21,8 @@ class ServerBullet:
         self.shooter_id = shooter_id
         self.radius = shoot_message.relative_size * MAX_RADIUS
         self.damage = shoot_message.relative_size**2 * MAX_DAMAGE
+        self.bounces_left: int = 1
+        self.id_of_last_wall_hit: Optional[ObjectId] = None
 
         shoot_direction = (shoot_message.mouse_position_world_space - shoot_message.player_position).normalized()
         self.initial_position = shoot_message.player_position + shoot_direction * SPAWN_OFFSET

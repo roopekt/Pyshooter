@@ -103,11 +103,11 @@ class GameClient(scene.Scene):
     def render(self):
         self.background.render(self.camera)
 
-        for _player in self.players.values():
-            _player.render(self.camera)
-        self.arena.render(self.camera)
         for _bullet in self.bullets.values():
             _bullet.render(self.camera)
+        self.arena.render(self.camera)
+        for _player in self.players.values():
+            _player.render(self.camera)
         self.render_HUD()
 
         if self.has_game_ended():

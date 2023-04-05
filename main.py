@@ -1,6 +1,7 @@
 import argumentparser
 from sys import argv
 from random import randint
+from windowcontainer import WindowContainer
 
 arguments = None
 if len(argv) > 1:
@@ -11,6 +12,6 @@ import scenemanager
 
 SERVER_PORT = 29800
 client_port = SERVER_PORT + randint(1, 1023)
-window = pygame.display.set_mode((640, 480), pygame.RESIZABLE)
+window_container = WindowContainer()
 
-scenemanager.SceneManager(window, SERVER_PORT, client_port).mainloop(start_with_parameters=arguments)
+scenemanager.SceneManager(window_container, SERVER_PORT, client_port).mainloop(start_with_parameters=arguments)

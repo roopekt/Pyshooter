@@ -10,7 +10,7 @@ class VectorInt:
 
     def __add__(self, other):
         return VectorInt(self.x + other.x, self.y + other.y)
-
+    
 def tuple_to_pymunk_vec(tuple: tuple[float, float]):
     return pymunk.Vec2d(tuple[0], tuple[1])
 

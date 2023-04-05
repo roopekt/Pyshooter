@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 import pygame
-from typing import Optional, NewType
+from typing import Optional, NewType, Sequence
 import datetime
 import random
 import pathlib
 from os import makedirs
 from fpscalculator import FPSCalculator
+from windowcontainer import WindowContainer
 
 SceneType = NewType("SceneType", str)
 SCENE_QUIT = SceneType("quit")
@@ -15,12 +16,15 @@ SCENE_GAME = SceneType("game")
 
 class Scene(ABC):
 
-    def __init__(self, window: pygame.Surface, max_fps: float):
-        self.window = window
+    def __init__(self, window_container: WindowContainer, max_fps: float):
+        self.window_container = window_container
         self.max_fps = max_fps
         self.delta_time = 1 / max_fps
         self.scene_to_switch_to: Optional[SceneType] = None
         self.FPS_calculator = FPSCalculator()
+
+        self.default_resolution = self.window_container.window.get_size()
+        self.fullscreen_active = False
 
     def mainloop(self):
         clock = pygame.time.Clock()
@@ -33,6 +37,9 @@ class Scene(ABC):
                     self.scene_to_switch_to = SCENE_QUIT
                 elif event.type == pygame.KEYDOWN and event.key == pygame.K_F2:
                     self.save_screenshot()
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                    self.fullscreen_active = not self.fullscreen_active
+                    self.window_container.set_fullscreen(self.fullscreen_active)
 
             self.handle_events(events)
             self.update()
@@ -58,5 +65,5 @@ class Scene(ABC):
         save_path = save_folder / file_name
 
         makedirs(save_folder, exist_ok=True)
-        pygame.image.save(self.window, save_path)
+        pygame.image.save(self.window_container.window, save_path)
         print(f'Screenshot saved to "{save_path}"')

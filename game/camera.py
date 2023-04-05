@@ -6,6 +6,7 @@ from typing import Sequence
 from statistics import mean
 from . import arenaprops
 from functools import reduce
+from windowcontainer import WindowContainer
 
 OWNING_PLAYER_BB_RADIUS = 10 # owning player is the avatar of the client we are running on
 OTHER_PLAYERS_BB_RADIUS = 5
@@ -47,7 +48,7 @@ def scale_BB_to_correct_size(bbox: BB, owning_player_pos: Vec2d, min_height: flo
 
 @dataclass
 class Camera:
-    window: pygame.surface.Surface
+    window_container: WindowContainer
     position: Vec2d = field(default_factory=Vec2d.zero)
     height: float = 25
 
@@ -62,7 +63,7 @@ class Camera:
 
     # scale factor to convert between world units and pixels
     def get_graphical_scale_factor(self):
-        return self.window.get_height() / self.height
+        return self.window_container.window.get_height() / self.height
 
     def get_screen_position(self, world_position: Vec2d):
         p = world_position - self.position
@@ -79,12 +80,35 @@ class Camera:
         p += self.position
         return p
     
+    def get_top_left_corner_world_space(self):
+        return self.get_world_position((0, 0))
+    
     def get_bottom_left_corner_world_space(self):
-        return self.get_world_position((0, self.window.get_height() - 1))
+        return self.get_world_position((0, self.window_container.window.get_height() - 1))
     
     def get_window_size(self):
-        return mymath.tuple_to_pymunk_vec(self.window.get_size())
+        return mymath.tuple_to_pymunk_vec(self.window_container.window.get_size())
     
     def get_aspect_ratio(self):
         window_size = self.get_window_size()
         return window_size.x / window_size.y
+    
+    def get_window_rect(self):
+        return self.window_container.window.get_rect()
+    
+@dataclass
+class WorldSpaceRect:
+    position: Vec2d
+    size: Vec2d
+    # what position specifies. e.g. (0, 0) = center, (-1, -1) = bottom left corner
+    pivot: Vec2d = field(default_factory=Vec2d.zero)
+
+    def get_screen_space_rect(self, camera: Camera) -> pygame.Rect:
+        anchor_offset = -mymath.multiply_compwise(self.pivot, self.size) / 2
+        corner_offset = -self.size / 2
+        corner_world_space = self.position + anchor_offset + corner_offset
+        corner = camera.get_screen_position(corner_world_space)
+
+        size = mymath.pymunk_vec_to_pygame_vec(self.size * camera.get_graphical_scale_factor())
+
+        return pygame.Rect(corner, size)

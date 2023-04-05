@@ -12,6 +12,8 @@ import time
 import math
 import connectioncode
 import errors
+from windowcontainer import WindowContainer
+from game import playercolor
 
 BACKGROUND_COLOR = pygame.Color("#0e0e0f")
 GAME_START_DELAY_SECONDS = 3
@@ -41,9 +43,9 @@ class SelectableTextBox(pygame_gui.elements.UITextEntryBox):
 
 class StartMenu(scene.Scene):
 
-    def __init__(self, window: pygame.Surface):
-        super().__init__(window, max_fps=50)
-        self.gui_manager = pygame_gui.UIManager(self.window.get_size(), GUI_THEME_PATH)
+    def __init__(self, window_container: WindowContainer):
+        super().__init__(window_container, max_fps=50)
+        self.gui_manager = pygame_gui.UIManager(self.window_container.window.get_size(), GUI_THEME_PATH)
         self.game_parameters: Optional[gameparameters.GameParameters] = None
 
         self.local_ip_label = pygame_gui.elements.UILabel(
@@ -114,7 +116,7 @@ class StartMenu(scene.Scene):
                 elif event.ui_element == self.final_join_game_button:
                     self.try_enter_lobby(is_host=False)
             elif event.type == pygame.VIDEORESIZE:
-                self.gui_manager.set_window_resolution(self.window.get_size())
+                self.gui_manager.set_window_resolution(self.window_container.window.get_size())
 
             self.gui_manager.process_events(event)
 
@@ -122,8 +124,8 @@ class StartMenu(scene.Scene):
         self.gui_manager.update(self.delta_time / 1000)
 
     def render(self):
-        self.window.fill(BACKGROUND_COLOR)
-        self.gui_manager.draw_ui(self.window)
+        self.window_container.window.fill(BACKGROUND_COLOR)
+        self.gui_manager.draw_ui(self.window_container.window)
         pygame.display.flip()
 
     def set_join_panel_visibility(self, visible: bool):
@@ -159,11 +161,12 @@ class StartMenu(scene.Scene):
         self.scene_to_switch_to = scene.SCENE_LOBBY
 class LobbyClient(scene.Scene):
 
-    def __init__(self, communication_client: CommunicationClient, game_parameters: gameparameters.GameParameters, window: pygame.Surface):
+    def __init__(self, communication_client: CommunicationClient, game_parameters: gameparameters.GameParameters, window_container: WindowContainer):
         self.communication_client = communication_client
+        self.communication_client.remove_messages_of_other_types(messages.LobbyMessage)
         self.game_parameters = game_parameters
-        super().__init__(window, max_fps=50)
-        self.gui_manager = pygame_gui.UIManager(self.window.get_size(), GUI_THEME_PATH)
+        super().__init__(window_container, max_fps=50)
+        self.gui_manager = pygame_gui.UIManager(self.window_container.window.get_size(), GUI_THEME_PATH)
         self.connection_code = connectioncode.encode_ip_address(game_parameters.get_server_ip())
         self.join_lobby_server()
 
@@ -215,7 +218,7 @@ class LobbyClient(scene.Scene):
                 if event.ui_element == self.start_game_button:
                     self.communication_client.send_reliable(messages.GameStartRequest())
             elif event.type == pygame.VIDEORESIZE:
-                self.gui_manager.set_window_resolution(self.window.get_size())
+                self.gui_manager.set_window_resolution(self.window_container.window.get_size())
 
             self.gui_manager.process_events(event)
 
@@ -224,12 +227,12 @@ class LobbyClient(scene.Scene):
         self.handle_messages()
 
     def render(self):
-        self.window.fill(BACKGROUND_COLOR)
-        self.gui_manager.draw_ui(self.window)
+        self.window_container.window.fill(BACKGROUND_COLOR)
+        self.gui_manager.draw_ui(self.window_container.window)
         pygame.display.flip()
 
     def handle_messages(self):
-        for message in self.communication_client.poll_messages():
+        for message in self.communication_client.poll_messages(type_to_poll=messages.LobbyMessage):
             if isinstance(message, messages.LobbyStateUpdate):
                 self.update_connected_players(message)
                 self.update_game_start_timer(message)
@@ -237,11 +240,14 @@ class LobbyClient(scene.Scene):
                     self.scene_to_switch_to = scene.SCENE_GAME
                     print("Entering game.")
             else:
-                self.scene_to_switch_to = scene.SCENE_GAME
-                print(f"Unexpected message ({type(message)}) received by lobby. Entering game.")
+                raise Exception(f"LobbyClient can't handle a {type(message)}")
 
     def update_connected_players(self, message: messages.LobbyStateUpdate):
-        self.player_list_textbox.set_text('\n'.join(message.connected_player_names))
+        text = '\n'.join([
+            f"<font color='{playercolor.get_pygame_gui_color(name)}'>{name}</font>"
+            for name in message.connected_player_names
+        ])#color={playercolor.get_pygame_gui_color(name)}
+        self.player_list_textbox.set_text(text)
 
     def update_game_start_timer(self, message: messages.LobbyStateUpdate):
         if message.time_to_game_start != None:
@@ -260,6 +266,7 @@ class LobbyServer(ThreadOwner):
 
     def __init__(self, communication_server: CommunicationServer, start = False):
         self.communication_server = communication_server
+        self.communication_server.remove_messages_of_other_types(messages.LobbyMessage)
         self.max_fps = 20
 
         self.players: dict[messages.ObjectId, str] = {}
@@ -277,7 +284,7 @@ class LobbyServer(ThreadOwner):
             self.send_post_frame_messages()
 
     def handle_messages(self):
-        for message_with_id in self.communication_server.poll_messages():
+        for message_with_id in self.communication_server.poll_messages(type_to_poll=messages.LobbyMessage):
             message = message_with_id.payload
             sender_id = message_with_id.sender_id
 
@@ -286,7 +293,7 @@ class LobbyServer(ThreadOwner):
             elif isinstance(message, messages.GameStartRequest):
                 self.game_start_time = time.time() + GAME_START_DELAY_SECONDS
             else:
-                raise Exception(f"Lobby server cannot handle a {type(message)}.")
+                raise Exception(f"LobbyServer can't handle a {type(message)}")
             
     def send_post_frame_messages(self):
         self.communication_server.send_to_all_reliable(messages.LobbyStateUpdate(

@@ -2,6 +2,7 @@ from pymunk import Vec2d
 import pymunk
 from .camera import Camera
 import pygame
+import math
 import mymath
 import random
 import objectid
@@ -65,9 +66,14 @@ class ClientWall:
         dimensions_screen_space = mymath.pymunk_vec_to_pygame_vec(self.dimensions) * camera.get_graphical_scale_factor()
         rect = pygame.Rect(top_left_screen_space, dimensions_screen_space)
 
-        color = WALL_ALMOST_DEAD_COLOR.lerp(WALL_ALIVE_COLOR, self.health / self.max_health)
+        t = self.health / self.max_health
+        t = t if not math.isnan(t) else 1# to make infinite health work properly
+        color = WALL_ALMOST_DEAD_COLOR.lerp(WALL_ALIVE_COLOR, t)
 
-        pygame.draw.rect(camera.window, color, rect)
+        # pygame.draw.rect doesn't work with transparency...
+        rect_surface = pygame.Surface(rect.size, pygame.SRCALPHA)
+        rect_surface.fill(color)
+        camera.window_container.window.blit(rect_surface, rect)
 
     def handle_wall_update(self, wall_update: messages.WallUpdate):
         self.position = wall_update.position
@@ -81,12 +87,13 @@ class ClientWall:
 class ServerArena:
 
     def __init__(self, physics_world: pymunk.Space):
-        self.walls: list[ServerWall] = self.get_boundary_walls(physics_world)
+        self.walls: dict[objectid.ObjectId, ServerWall] = self.get_boundary_walls(physics_world)
         for _ in range(WALL_COUNT):
-            self.walls.append(self.get_random_wall(physics_world))
+            wall = self.get_random_wall(physics_world)
+            self.walls[wall.id] = wall
 
     def try_get_arena_update_message(self, update_dirty_only: bool = True):
-        walls_to_update = self.get_dirty_walls() if update_dirty_only else self.walls
+        walls_to_update = self.get_dirty_walls() if update_dirty_only else self.walls.values()
         if len(walls_to_update) > 0:
             wall_updates = {wall.id: wall.get_wall_update() for wall in walls_to_update}
             return messages.ArenaUpdate(wall_updates)
@@ -96,23 +103,24 @@ class ServerArena:
     # get walls that have changed since last call. Returns all if first call
     def get_dirty_walls(self):
         dirty_walls: list[ServerWall] = []
-        for wall in self.walls:
+        for wall in self.walls.values():
             if wall.is_dirty:
                 dirty_walls.append(wall)
                 wall.is_dirty = False
 
         #delete dead walls
-        self.walls = [wall for wall in self.walls if wall.is_alive()]
+        self.walls = {wall.id: wall for wall in self.walls.values() if wall.is_alive()}
 
         return dirty_walls
     
     def get_boundary_walls(self, physics_world: pymunk.Space):
-        return [
+        walls = [
             ServerWall(Vec2d( ARENA_RADIUS, 0), Vec2d(WALL_WIDTH, 2*ARENA_RADIUS), float('inf'), physics_world),
             ServerWall(Vec2d(-ARENA_RADIUS, 0), Vec2d(WALL_WIDTH, 2*ARENA_RADIUS), float('inf'), physics_world),
             ServerWall(Vec2d(0,  ARENA_RADIUS), Vec2d(2*ARENA_RADIUS, WALL_WIDTH), float('inf'), physics_world),
             ServerWall(Vec2d(0, -ARENA_RADIUS), Vec2d(2*ARENA_RADIUS, WALL_WIDTH), float('inf'), physics_world),
         ]
+        return {wall.id: wall for wall in walls}
     
     def get_random_wall(self, physics_world: pymunk.Space):
         position = Vec2d(

@@ -95,7 +95,7 @@ class GameClient(scene.Scene):
         own_avatar = self.get_own_avatar()
         other_players = dict(self.players)
         other_players.pop(self.communication_client.id)
-        self.camera.update(own_avatar.position, [p.position for p in other_players.values()])
+        self.camera.update(own_avatar.head_position, [p.head_position for p in other_players.values()])
 
     def send_post_frame_messages(self):
         self.communication_client.send(messages.MousePositionUpdate(self.get_own_avatar().mouse_position_world_space))
@@ -121,7 +121,7 @@ class GameClient(scene.Scene):
 
         own_avatar = self.get_own_avatar()
         self.communication_client.send_reliable(messages.ShootMessage(
-            player_position = own_avatar.position,
+            initial_bullet_position = own_avatar.left_arm_position,
             mouse_position_world_space = own_avatar.mouse_position_world_space,
             relative_size = bullet_relative_size
         ))
@@ -164,7 +164,9 @@ class GameClient(scene.Scene):
         )
 
     def has_game_ended(self):
-        return Counter([p.is_alive() for p in self.players.values()])[True] <= 1
+        enough_dead = Counter([p.is_alive() for p in self.players.values()])[True] <= 1
+        multiple_players = len(self.players) > 1
+        return enough_dead and multiple_players
 
     def render_end_screen(self):
         alive_players = [p for p in self.players.values() if p.is_alive()]

@@ -3,7 +3,7 @@ from .camera import Camera
 import pygame
 import mymath
 from pymunk import Vec2d
-from math import ceil
+from math import ceil, isnan
 
 TILE_WIDTH = 15
 
@@ -25,6 +25,7 @@ class Background:
         ))
 
         corner = camera.get_bottom_left_corner_world_space()
+
         corner = mymath.multiply_compwise(mymath.floor_vec(mymath.divide_compwise(corner, tile_size)), tile_size)
         tile_map_size = mymath.ceil_vec(mymath.divide_compwise(camera.get_window_size(), self.tile.resolution)) + mymath.VectorInt(1, 1)
 

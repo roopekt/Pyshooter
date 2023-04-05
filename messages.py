@@ -30,13 +30,18 @@ class MousePositionUpdate(MessageToServer, GameMessage):
 @dataclass
 class PlayerStateUpdate(MessageToClient, GameMessage):
     player_id: ObjectId
-    position: Vec2d
     health: float
     mouse_position_world_space: Vec2d
+    head_orientation: float
+    head_position:      Vec2d
+    left_leg_position:  Vec2d
+    right_leg_position: Vec2d
+    left_arm_position:  Vec2d
+    right_arm_position: Vec2d
 
 @dataclass
 class ShootMessage(MessageToServer, GameMessage):
-    player_position: Vec2d
+    initial_bullet_position: Vec2d
     mouse_position_world_space: Vec2d
     relative_size: float
 

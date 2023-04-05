@@ -24,8 +24,8 @@ class ServerBullet:
         self.bounces_left: int = 1
         self.id_of_last_wall_hit: Optional[ObjectId] = None
 
-        shoot_direction = (shoot_message.mouse_position_world_space - shoot_message.player_position).normalized()
-        self.initial_position = shoot_message.player_position + shoot_direction * SPAWN_OFFSET
+        shoot_direction = (shoot_message.mouse_position_world_space - shoot_message.initial_bullet_position).normalized()
+        self.initial_position = shoot_message.initial_bullet_position + shoot_direction * SPAWN_OFFSET
         self.velocity = SPEED * shoot_direction
 
         self.physics_body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)

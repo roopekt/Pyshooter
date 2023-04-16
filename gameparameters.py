@@ -2,34 +2,57 @@ from dataclasses import dataclass
 from typing import Optional
 import socket
 import ipaddress
+import urllib.request
 
 @dataclass
 class GameParameters:
     is_host: bool
-    local_ip: str
+    is_public_host: bool
+    own_local_ip: str
+    own_external_ip: Optional[str]
     remote_server_ip: Optional[str]
     player_name: str
 
     def __post_init__(self):
         self.player_name = self.player_name.strip()
 
+        #validate flags
+        if self.is_public_host:
+            assert self.is_host
+
+        #validate local ip
+        local_address_obj = get_ip_address_object(self.own_local_ip)
+        assert local_address_obj.version == 4, "not ipv4"
+        assert local_address_obj.is_private, "ip not private"
+
+        #validate external ip
+        if self.is_public_host:
+            external_address_obj = get_ip_address_object(self.own_external_ip)
+            assert external_address_obj.version == 4, "not ipv4"
+            assert not external_address_obj.is_private, "ip not external"
+            assert not external_address_obj.is_loopback, "ip is localhost"
+
         # validate remote ip
         if not self.is_host:
             address_obj = get_ip_address_object(self.remote_server_ip)
             assert address_obj.version == 4, "not ipv4"
-        
-        #validate local ip
-        local_address_obj = get_ip_address_object(self.local_ip)
-        assert local_address_obj.version == 4, "not ipv4"
-        assert local_address_obj.is_private, "ip not private"
 
         #validate name
         assert self.player_name != None and self.player_name != "", "no name"
         assert len(self.player_name) <= 20, "too long name"
 
     def get_server_ip(self):
-        server_ip = self.local_ip if self.is_host else self.remote_server_ip
+        if self.is_host and not self.is_public_host:
+            server_ip = self.own_local_ip
+        elif self.is_public_host:
+            server_ip = self.own_external_ip
+        elif not self.is_host:
+            server_ip = self.remote_server_ip
+        else:
+            raise Exception("Unexpected flag combination")
+
         assert server_ip != None
+        assert server_ip != ""
         return server_ip
 
 def get_local_ip():
@@ -48,6 +71,20 @@ def get_local_ip():
             print(f"Invalid local ip {ip}: {exception} ({type(exception).__name__})")
 
     raise Exception("No valid local ip was found. Please specify it manually.")
+
+def get_external_ip():
+    ip = urllib.request.urlopen("https://v4.ident.me/").read().decode('utf8')
+
+    try:
+        address_obj = get_ip_address_object(ip)
+        assert address_obj.version == 4, "not ipv4"
+        assert not address_obj.is_private, "not external"
+        assert not address_obj.is_loopback, "localhost"
+    except Exception as exception:
+        raise Exception(f"Invalid external ip {ip}: {exception}") from exception
+
+    print(f"Valid external ip found: {ip}")
+    return ip
 
 def get_ip_address_object(ip_string: Optional[str]):
     try:

@@ -10,7 +10,7 @@ if len(argv) > 1:
 import pygame
 import scenemanager
 
-SERVER_PORT = 29800
+SERVER_PORT = 56575#29800
 client_port = SERVER_PORT + randint(1, 1023)
 window_container = WindowContainer()
 

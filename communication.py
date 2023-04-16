@@ -9,6 +9,7 @@ from typing import Optional, Callable
 from dataclasses import dataclass, field
 from time import time, sleep
 from objectid import ObjectId, get_new_object_id
+from portforwarding import PortForwarder
 
 RELIABLE_MESSAGE_INITIAL_SEND_COUNT = 2
 RELIABLE_MESSAGE_ID_STORAGE_SIZE = 1024
@@ -175,15 +176,22 @@ class CommunicationEndpoint(ThreadOwner, ABC):
 
 class CommunicationServer(CommunicationEndpoint):
 
-    def __init__(self, address, start = False):
+    # if external_address is provided, port forwarding will be set up
+    def __init__(self, private_address: tuple[str, int], external_address: Optional[tuple[str, int]] = None, start = False):
+        self.private_address = private_address
+        self.external_address = external_address
+
         self.hosting_client: Optional[HostingCommunicationClient] = None
         self.connected_players: dict[ObjectId, ServerSidePlayerHandle] = {}
 
         message_socket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-        message_socket.bind(address)
+        message_socket.bind(private_address)
 
         super().__init__(message_socket, "comm-server-resend")
         self.add_thread(threading.Thread(target=self.inwards_message_mainloop, daemon=True), "comm-server")
+
+        if self.external_address != None:
+            self.add_thread(threading.Thread(target=self.port_forwarding_mainloop), "port-forwarding")
 
         if start:
             self.start()
@@ -202,6 +210,14 @@ class CommunicationServer(CommunicationEndpoint):
                     continue
 
             self.handle_message(message, address)
+
+    def port_forwarding_mainloop(self):
+        assert self.external_address != None
+        forwarder = PortForwarder(self.private_address[0], self.private_address[1], self.external_address[0], self.external_address[1])
+
+        while self.running:
+            forwarder.update()
+            sleep(0.1)
 
     def handle_message(self, message: messages.MessageToServerWithId, address):
         assert(isinstance(message, messages.MessageToServerWithId))

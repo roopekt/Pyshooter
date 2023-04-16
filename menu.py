@@ -26,6 +26,13 @@ def get_default_local_ip():
         print(exception)
         return ""
 
+def get_default_external_ip():
+    try:
+        return gameparameters.get_external_ip()
+    except Exception as exception:
+        print(exception)
+        return ""
+
 # UITextEntryBox that ignores all input
 class SelectableTextBox(pygame_gui.elements.UITextEntryBox):
 
@@ -61,10 +68,23 @@ class StartMenu(scene.Scene):
             anchors={"centerx": "centerx", "top_target": self.local_ip_label},
             manager=self.gui_manager
         )
+        self.external_ip_label = pygame_gui.elements.UILabel(
+            text="External ip (ipv4)",
+            relative_rect=Rect(0, 10, 250, 20),
+            anchors={"centerx": "centerx", "top_target": self.local_ip_entry},
+            manager=self.gui_manager
+        )
+        self.external_ip_entry = pygame_gui.elements.UITextEntryLine(
+            initial_text=get_default_external_ip(),
+            placeholder_text="pleace specify",
+            relative_rect=Rect(0, 0, 250, -1),
+            anchors={"centerx": "centerx", "top_target": self.external_ip_label},
+            manager=self.gui_manager
+        )
         self.name_label = pygame_gui.elements.UILabel(
             text="Name",
             relative_rect=Rect(0, 10, 250, 20),
-            anchors={"centerx": "centerx", "top_target": self.local_ip_entry},
+            anchors={"centerx": "centerx", "top_target": self.external_ip_entry},
             manager=self.gui_manager
         )
         self.name_entry = pygame_gui.elements.UITextEntryLine(
@@ -85,6 +105,28 @@ class StartMenu(scene.Scene):
             anchors={"centerx": "centerx", "top_target": self.name_entry},
             manager=self.gui_manager
         )
+
+        self.select_server_type_label = pygame_gui.elements.UILabel(
+            text="Select server type",
+            relative_rect=Rect(0, 50, 250, 20),
+            anchors={"centerx": "centerx", "top_target": self.join_game_button},
+            manager=self.gui_manager
+        )
+        self.LAN_host_button = pygame_gui.elements.UIButton(
+            text="LAN",
+            tool_tip_text="Everyone must be on the same network. More reliable.",
+            relative_rect=Rect(-70, 0, 120, 30),
+            anchors={"centerx": "centerx", "top_target": self.select_server_type_label},
+            manager=self.gui_manager
+        )
+        self.public_host_button = pygame_gui.elements.UIButton(
+            text="Public",
+            tool_tip_text="Works from anywhere. Less reliable, uses UPnP.",
+            relative_rect=Rect(70, 0, 120, 30),
+            anchors={"centerx": "centerx", "top_target": self.select_server_type_label},
+            manager=self.gui_manager
+        )
+        self.set_host_panel_visibility(False)
 
         self.connection_code_label = pygame_gui.elements.UILabel(
             text="Connection code",
@@ -110,23 +152,37 @@ class StartMenu(scene.Scene):
         for event in events:
             if event.type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == self.host_game_button:
-                    self.try_enter_lobby(is_host=True)
+                    self.set_host_panel_visibility(True)
+                    self.set_join_panel_visibility(False)
                 elif event.ui_element == self.join_game_button:
+                    self.set_host_panel_visibility(False)
                     self.set_join_panel_visibility(True)
+                
+                elif event.ui_element == self.LAN_host_button:
+                    self.try_enter_lobby(is_host=True,  is_public_host=False)
+                elif event.ui_element == self.public_host_button:
+                    self.try_enter_lobby(is_host=True,  is_public_host=True )
                 elif event.ui_element == self.final_join_game_button:
-                    self.try_enter_lobby(is_host=False)
+                    self.try_enter_lobby(is_host=False, is_public_host=False)
+
             elif event.type == pygame.VIDEORESIZE:
                 self.gui_manager.set_window_resolution(self.window_container.window.get_size())
 
             self.gui_manager.process_events(event)
 
     def update(self):
-        self.gui_manager.update(self.delta_time / 1000)
+        self.gui_manager.update(self.delta_time)
 
     def render(self):
         self.window_container.window.fill(BACKGROUND_COLOR)
         self.gui_manager.draw_ui(self.window_container.window)
         pygame.display.flip()
+
+    def set_host_panel_visibility(self, visible: bool):
+        visibility = 1 if visible else 0
+        self.select_server_type_label.visible = visibility
+        self.LAN_host_button.visible = visibility
+        self.public_host_button.visible = visibility
 
     def set_join_panel_visibility(self, visible: bool):
         visibility = 1 if visible else 0
@@ -134,7 +190,7 @@ class StartMenu(scene.Scene):
         self.connection_code_entry.visible = visibility
         self.final_join_game_button.visible = visibility
 
-    def try_enter_lobby(self, is_host: bool):
+    def try_enter_lobby(self, is_host: bool, is_public_host: bool):
         remote_ip = None
         if not is_host:
             connection_code = self.connection_code_entry.get_text()
@@ -152,13 +208,16 @@ class StartMenu(scene.Scene):
                 return
 
         self.game_parameters = gameparameters.GameParameters(
-            is_host=is_host,
-            local_ip=self.local_ip_entry.get_text(),
-            remote_server_ip=remote_ip,
-            player_name=self.name_entry.get_text()
+            is_host = is_host,
+            is_public_host = is_public_host,
+            own_local_ip = self.local_ip_entry.get_text(),
+            own_external_ip = self.external_ip_entry.get_text(),
+            remote_server_ip = remote_ip,
+            player_name = self.name_entry.get_text()
         )
 
         self.scene_to_switch_to = scene.SCENE_LOBBY
+
 class LobbyClient(scene.Scene):
 
     def __init__(self, communication_client: CommunicationClient, game_parameters: gameparameters.GameParameters, window_container: WindowContainer):
@@ -223,7 +282,7 @@ class LobbyClient(scene.Scene):
             self.gui_manager.process_events(event)
 
     def update(self):
-        self.gui_manager.update(self.delta_time / 1000)
+        self.gui_manager.update(self.delta_time)
         self.handle_messages()
 
     def render(self):

@@ -45,6 +45,7 @@ class SceneManager:
                 assert(next_loop_key != None)
                 current_loop = scene_loops[next_loop_key]
         
+        self.close_communication()
         pygame.quit()
 
     def startmenu_mainloop(self):
@@ -95,13 +96,14 @@ class SceneManager:
         assert(self.game_parameters != None)
         if not self.communication_active:
             if self.game_parameters.is_host:
-                self.communication_server = communication.CommunicationServer((self.game_parameters.local_ip, self.server_port), start=True)
+                external_address = (self.game_parameters.own_external_ip, self.server_port) if self.game_parameters.is_public_host else None
+                self.communication_server = communication.CommunicationServer((self.game_parameters.own_local_ip, self.server_port), external_address=external_address, start=True)
 
                 self.hosting_communication_client = communication.HostingCommunicationClient(self.communication_server)
                 self.communication_server.hosting_client = self.hosting_communication_client
             else:
                 self.internet_communication_client = communication.InternetCommunicationClient(
-                    (self.game_parameters.local_ip, self.client_port),
+                    (self.game_parameters.own_local_ip, self.client_port),
                     (self.game_parameters.remote_server_ip, self.server_port),
                     start=True
                 )
@@ -129,9 +131,7 @@ class SceneManager:
     
     def get_server_ip(self):
         assert(self.game_parameters != None)
-        server_ip = self.game_parameters.local_ip if self.game_parameters.is_host else self.game_parameters.remote_server_ip
-        assert server_ip != None
-        return server_ip
+        return self.game_parameters.get_server_ip()
     
     def get_connection_code(self):
         server_ip = self.get_server_ip()

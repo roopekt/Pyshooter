@@ -11,7 +11,7 @@ CHECKSUM_CORRECT_SUM = 7
 # connection code:
 # - represents an ip address
 # - the 32-bit integer is converted into base-<BASE>, represented with SYMBOLS
-# - the sum all symbols (their indeces in SYMBOLS) mod <BASE> must be 0 (most incorrect codes can be detected with this)
+# - the sum of all symbols (their indeces in SYMBOLS) mod <BASE> must be CHECKSUM_CORRECT_SUM (most incorrect codes can be detected with this)
 # - the last letter in a connection string doesn't encode the ip, but makes the sum correct
 # - case insensitive
 
